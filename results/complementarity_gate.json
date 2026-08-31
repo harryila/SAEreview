@@ -1,0 +1,169 @@
+{
+  "run": {
+    "generated_at_utc": "2026-08-31T22:20:16.541959+00:00",
+    "script": "complementarity_gate.py"
+  },
+  "hypothesis": "Inferior global SAE retrieval may still rescue enough dense top-10 misses to justify a shortlist reranker.",
+  "preprocessing": {
+    "openai_model": "text-embedding-3-small",
+    "sae_input": "raw cached API vectors; no pre-SAE L2 normalization",
+    "dense_similarity": "cosine after L2 normalization",
+    "sae_similarity": "cosine over L2-normalized Top-K latent vectors",
+    "raw_embedding_norm_min": 0.9994253516197205,
+    "raw_embedding_norm_mean": 0.9999828338623047,
+    "raw_embedding_norm_max": 1.0005444288253784,
+    "embedding_cache_sha256": "ba182c6447de5fd4495e24d04df3e5bbd163737eaf09732401042fe6a76f7446"
+  },
+  "benchmark": {
+    "name": "SCAR English bidirectional cross-domain retrieval proxy",
+    "source_url": "https://raw.githubusercontent.com/siyuyuan/scar/main/release/system_analogy_en.json",
+    "source_sha256": "12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369",
+    "pairs": 400,
+    "cross_domain_pairs": 283,
+    "query_directions": 566,
+    "candidates_per_direction": 400,
+    "low_overlap_pairs": 144,
+    "low_overlap_jaccard_threshold": 0.037037037037037035,
+    "top_k": 10,
+    "duplicate_label_policy": "all candidates with the same normalized system name count as relevant"
+  },
+  "checkpoints": {
+    "sae_cslg_k64_n9216": {
+      "filename": "csLG_64_9216.pth",
+      "domain": "cs.LG",
+      "expected_sha256": "29073be46ce5ddceee53f7e9ebf46449e239c1bc29f57dfebced041833698752",
+      "url": "https://huggingface.co/datasets/charlieoneill/saerchModels/resolve/b2cbb184b58880b77a546511e11d8fd214c40556/csLG_64_9216.pth?download=true",
+      "path": "weights/csLG_64_9216.pth",
+      "sha256": "29073be46ce5ddceee53f7e9ebf46449e239c1bc29f57dfebced041833698752",
+      "input_dimensions": 1536,
+      "n_latents": 9216,
+      "k": 64,
+      "auxk_training_config": 128
+    },
+    "sae_astroph_k64_n9216": {
+      "filename": "astroPH_64_9216.pth",
+      "domain": "astro.PH",
+      "expected_sha256": "112e8a006ff0cc8e3b4439e1ef28df816564c5d9054974a763eaa69804cf02ed",
+      "url": "https://huggingface.co/datasets/charlieoneill/saerchModels/resolve/b2cbb184b58880b77a546511e11d8fd214c40556/astroPH_64_9216.pth?download=true",
+      "path": "weights/astroPH_64_9216.pth",
+      "sha256": "112e8a006ff0cc8e3b4439e1ef28df816564c5d9054974a763eaa69804cf02ed",
+      "input_dimensions": 1536,
+      "n_latents": 9216,
+      "k": 64,
+      "auxk_training_config": 128
+    }
+  },
+  "gate": {
+    "pre_specified_min_unique_rescues": 20,
+    "pre_specified_min_oracle_improvement": 0.04,
+    "pre_specified_min_oracle_improvement_percentage_points": 4.0,
+    "passes": true,
+    "decision": "PROCEED_TO_HYBRID"
+  },
+  "overall": {
+    "queries": 566,
+    "dense_top10_successes": 146,
+    "cslg_sae_top10_successes": 105,
+    "astroph_sae_top10_successes": 122,
+    "either_sae_top10_successes": 151,
+    "shared_dense_and_either_sae": 97,
+    "sae_unique_rescues": 54,
+    "dense_unique_rescues": 49,
+    "neither_succeeds": 366,
+    "oracle_union_successes": 200,
+    "cslg_unique_rescues_over_dense": 23,
+    "astroph_unique_rescues_over_dense": 41,
+    "rescued_by_both_saes": 10,
+    "dense_recall_at_10": 0.2579505300353357,
+    "either_sae_oracle_recall_at_10": 0.2667844522968198,
+    "oracle_union_recall_at_10": 0.35335689045936397,
+    "oracle_improvement_over_dense": 0.09540636042402828,
+    "oracle_improvement_percentage_points": 9.540636042402827,
+    "rescued_distinct_pairs": 44,
+    "pairs_rescued_in_both_directions": 10
+  },
+  "low_lexical_overlap": {
+    "queries": 288,
+    "dense_top10_successes": 30,
+    "cslg_sae_top10_successes": 24,
+    "astroph_sae_top10_successes": 25,
+    "either_sae_top10_successes": 36,
+    "shared_dense_and_either_sae": 17,
+    "sae_unique_rescues": 19,
+    "dense_unique_rescues": 13,
+    "neither_succeeds": 239,
+    "oracle_union_successes": 49,
+    "cslg_unique_rescues_over_dense": 8,
+    "astroph_unique_rescues_over_dense": 14,
+    "rescued_by_both_saes": 3,
+    "dense_recall_at_10": 0.10416666666666667,
+    "either_sae_oracle_recall_at_10": 0.125,
+    "oracle_union_recall_at_10": 0.1701388888888889,
+    "oracle_improvement_over_dense": 0.06597222222222222,
+    "oracle_improvement_percentage_points": 6.597222222222222
+  },
+  "checkpoint_complementarity": {
+    "sae_cslg_k64_n9216": {
+      "queries": 566,
+      "sae_top10_successes": 105,
+      "shared_successes": 82,
+      "sae_unique_rescues": 23,
+      "dense_unique_rescues": 64,
+      "oracle_union_successes": 169,
+      "oracle_union_recall_at_10": 0.29858657243816256,
+      "oracle_improvement_over_dense": 0.040636042402826866,
+      "oracle_improvement_percentage_points": 4.063604240282687
+    },
+    "sae_astroph_k64_n9216": {
+      "queries": 566,
+      "sae_top10_successes": 122,
+      "shared_successes": 81,
+      "sae_unique_rescues": 41,
+      "dense_unique_rescues": 65,
+      "oracle_union_successes": 187,
+      "oracle_union_recall_at_10": 0.3303886925795053,
+      "oracle_improvement_over_dense": 0.07243816254416963,
+      "oracle_improvement_percentage_points": 7.243816254416963
+    }
+  },
+  "top10_cutoff_ties": {
+    "openai_dense": {
+      "a_to_b": 0,
+      "b_to_a": 0
+    },
+    "sae_cslg_k64_n9216": {
+      "a_to_b": 0,
+      "b_to_a": 0
+    },
+    "sae_astroph_k64_n9216": {
+      "a_to_b": 0,
+      "b_to_a": 0
+    }
+  },
+  "rank_correlations": {
+    "dense_vs_cslg_sae": {
+      "spearman_rho": 0.7102811457600352,
+      "p_value": 4.746906110589687e-88
+    },
+    "dense_vs_astroph_sae": {
+      "spearman_rho": 0.662379815335202,
+      "p_value": 9.263326603022682e-73
+    },
+    "dense_vs_best_of_two_sae_oracle": {
+      "spearman_rho": 0.7393978483392647,
+      "p_value": 5.687075134727392e-99
+    },
+    "cslg_vs_astroph_sae": {
+      "spearman_rho": 0.6266950753304693,
+      "p_value": 4.346872972315093e-63
+    }
+  },
+  "artifacts": {
+    "per_query_jsonl": "results/complementarity_queries.jsonl"
+  },
+  "scope_caveats": [
+    "SCAR contains system descriptions rather than scientific-paper abstracts.",
+    "Best-of-two SAE success is an oracle diagnostic, not a deployable fusion rule.",
+    "The gate tests direct latent-space complementarity only; it does not test IDF-weighted feature evidence or a learned reranker."
+  ]
+}

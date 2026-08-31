@@ -1,0 +1,360 @@
+{
+  "run": {
+    "generated_at_utc": "2026-08-31T20:27:29.315390+00:00",
+    "seed": 20260831,
+    "bootstrap_samples": 2000,
+    "python": "3.10.18 (main, Jun  3 2025, 18:23:41) [Clang 17.0.0 (clang-1700.0.13.3)]",
+    "torch": "2.7.1"
+  },
+  "benchmark": {
+    "name": "SCAR English bidirectional closed-corpus retrieval proxy",
+    "source_url": "https://raw.githubusercontent.com/siyuyuan/scar/main/release/system_analogy_en.json",
+    "source_sha256": "12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369",
+    "total_pairs": 400,
+    "cross_domain_pairs": 283,
+    "queries_cross_domain_bidirectional": 566,
+    "candidate_count_per_direction": 400,
+    "low_lexical_overlap_pairs": 144,
+    "low_lexical_overlap_jaccard_threshold": 0.037037037037037035,
+    "relevance": "paired candidate; duplicate candidates with the same normalized system name are also counted as relevant"
+  },
+  "models": {
+    "random_seeded": {
+      "seed": 20260831
+    },
+    "bm25": {
+      "k1": 1.5,
+      "b": 0.75
+    },
+    "minilm_dense": {
+      "model": "sentence-transformers/all-MiniLM-L6-v2",
+      "dimensions": 384,
+      "local_files_only": true
+    },
+    "openai_dense": {
+      "model": "text-embedding-3-small",
+      "dimensions": 1536
+    },
+    "sae_cslg_k128_n3072": {
+      "domain": "cs.LG",
+      "filename": "csLG_128_3072_256.pth",
+      "url": "https://huggingface.co/charlieoneill/embedding-saes/resolve/main/csLG_128_3072_256.pth?download=true",
+      "sha256": "ccbbab2ef3b5ee009b961dbafcbbb2d1489de2df1a685abb51251c2c25673735",
+      "k": 128,
+      "n_latents": 3072,
+      "input_dimensions": 1536
+    },
+    "sae_astroph_k128_n3072": {
+      "domain": "astro.PH",
+      "filename": "astroPH_128_3072_256.pth",
+      "url": "https://huggingface.co/charlieoneill/embedding-saes/resolve/main/astroPH_128_3072_256.pth?download=true",
+      "sha256": "1b848613ddfd2684ff4c4cdb531335ec644fb5f670307cb6415844e4db27a5d7",
+      "k": 128,
+      "n_latents": 3072,
+      "input_dimensions": 1536
+    }
+  },
+  "metrics": {
+    "random_seeded": {
+      "cross_domain": {
+        "mrr": 0.02045192729634225,
+        "recall_at_1": 0.0017667844522968198,
+        "recall_at_5": 0.015901060070671377,
+        "recall_at_10": 0.03356890459363958,
+        "median_rank": 145.0,
+        "mean_rank": 170.1095406360424
+      },
+      "low_lexical_overlap": {
+        "mrr": 0.015206384793490853,
+        "recall_at_1": 0.0,
+        "recall_at_5": 0.010416666666666666,
+        "recall_at_10": 0.013888888888888888,
+        "median_rank": 166.0,
+        "mean_rank": 175.90972222222223
+      }
+    },
+    "bm25": {
+      "cross_domain": {
+        "mrr": 0.10015434927259426,
+        "recall_at_1": 0.044169611307420496,
+        "recall_at_5": 0.13427561837455831,
+        "recall_at_10": 0.21024734982332155,
+        "median_rank": 66.0,
+        "mean_rank": 102.5821554770318
+      },
+      "low_lexical_overlap": {
+        "mrr": 0.026262507873367594,
+        "recall_at_1": 0.006944444444444444,
+        "recall_at_5": 0.020833333333333332,
+        "recall_at_10": 0.034722222222222224,
+        "median_rank": 145.0,
+        "mean_rank": 157.86458333333334
+      }
+    },
+    "minilm_dense": {
+      "cross_domain": {
+        "mrr": 0.10462091412161804,
+        "recall_at_1": 0.04770318021201413,
+        "recall_at_5": 0.13074204946996468,
+        "recall_at_10": 0.20848056537102475,
+        "median_rank": 43.5,
+        "mean_rank": 83.71024734982332
+      },
+      "low_lexical_overlap": {
+        "mrr": 0.0517793197396031,
+        "recall_at_1": 0.013888888888888888,
+        "recall_at_5": 0.0625,
+        "recall_at_10": 0.09027777777777778,
+        "median_rank": 74.5,
+        "mean_rank": 110.24652777777777
+      }
+    },
+    "openai_dense": {
+      "cross_domain": {
+        "mrr": 0.1178557850756119,
+        "recall_at_1": 0.045936395759717315,
+        "recall_at_5": 0.16784452296819788,
+        "recall_at_10": 0.2579505300353357,
+        "median_rank": 36.0,
+        "mean_rank": 69.00618374558304
+      },
+      "low_lexical_overlap": {
+        "mrr": 0.05100063082393829,
+        "recall_at_1": 0.010416666666666666,
+        "recall_at_5": 0.0625,
+        "recall_at_10": 0.10416666666666667,
+        "median_rank": 65.5,
+        "mean_rank": 96.19791666666667
+      }
+    },
+    "sae_cslg_k128_n3072": {
+      "cross_domain": {
+        "mrr": 0.08356314120871396,
+        "recall_at_1": 0.0353356890459364,
+        "recall_at_5": 0.10954063604240283,
+        "recall_at_10": 0.18021201413427562,
+        "median_rank": 65.5,
+        "mean_rank": 104.73498233215548
+      },
+      "low_lexical_overlap": {
+        "mrr": 0.04095150644755781,
+        "recall_at_1": 0.013888888888888888,
+        "recall_at_5": 0.041666666666666664,
+        "recall_at_10": 0.06944444444444445,
+        "median_rank": 104.0,
+        "mean_rank": 137.05208333333334
+      }
+    },
+    "sae_astroph_k128_n3072": {
+      "cross_domain": {
+        "mrr": 0.08886783130746255,
+        "recall_at_1": 0.03356890459363958,
+        "recall_at_5": 0.12190812720848057,
+        "recall_at_10": 0.18197879858657243,
+        "median_rank": 58.5,
+        "mean_rank": 96.70318021201413
+      },
+      "low_lexical_overlap": {
+        "mrr": 0.04856975660129671,
+        "recall_at_1": 0.013888888888888888,
+        "recall_at_5": 0.0625,
+        "recall_at_10": 0.09027777777777778,
+        "median_rank": 90.5,
+        "mean_rank": 123.47916666666667
+      }
+    },
+    "sae_dual_domain_ensemble": {
+      "cross_domain": {
+        "mrr": 0.0876948747973925,
+        "recall_at_1": 0.0353356890459364,
+        "recall_at_5": 0.11130742049469965,
+        "recall_at_10": 0.18197879858657243,
+        "median_rank": 55.5,
+        "mean_rank": 96.21113074204948
+      },
+      "low_lexical_overlap": {
+        "mrr": 0.041166818378254415,
+        "recall_at_1": 0.010416666666666666,
+        "recall_at_5": 0.04513888888888889,
+        "recall_at_10": 0.0798611111111111,
+        "median_rank": 97.5,
+        "mean_rank": 126.35590277777777
+      }
+    }
+  },
+  "paired_bootstrap_comparisons": {
+    "sae_cslg_k128_n3072_vs_openai_dense": {
+      "cross_domain": {
+        "mrr": {
+          "delta": -0.03429264386689792,
+          "ci_95_low": -0.04745148809535715,
+          "ci_95_high": -0.021815076273774228
+        },
+        "recall_at_10": {
+          "delta": -0.07773851590106007,
+          "ci_95_low": -0.10954063604240283,
+          "ci_95_high": -0.045936395759717315
+        }
+      },
+      "low_lexical_overlap": {
+        "mrr": {
+          "delta": -0.010049124376380475,
+          "ci_95_low": -0.017328537399409878,
+          "ci_95_high": -0.0029812814988494315
+        },
+        "recall_at_10": {
+          "delta": -0.034722222222222224,
+          "ci_95_low": -0.07291666666666667,
+          "ci_95_high": 0.0
+        }
+      }
+    },
+    "sae_astroph_k128_n3072_vs_openai_dense": {
+      "cross_domain": {
+        "mrr": {
+          "delta": -0.028987953768149347,
+          "ci_95_low": -0.043248239299076736,
+          "ci_95_high": -0.014038367057783567
+        },
+        "recall_at_10": {
+          "delta": -0.07597173144876325,
+          "ci_95_low": -0.11130742049469965,
+          "ci_95_high": -0.04240282685512368
+        }
+      },
+      "low_lexical_overlap": {
+        "mrr": {
+          "delta": -0.0024308742226415796,
+          "ci_95_low": -0.012360844940722137,
+          "ci_95_high": 0.008199470652598045
+        },
+        "recall_at_10": {
+          "delta": -0.013888888888888888,
+          "ci_95_low": -0.04513888888888889,
+          "ci_95_high": 0.020833333333333332
+        }
+      }
+    },
+    "sae_dual_domain_ensemble_vs_openai_dense": {
+      "cross_domain": {
+        "mrr": {
+          "delta": -0.03016091027821937,
+          "ci_95_low": -0.04203360128739503,
+          "ci_95_high": -0.01814129910533663
+        },
+        "recall_at_10": {
+          "delta": -0.07597173144876325,
+          "ci_95_low": -0.10777385159010601,
+          "ci_95_high": -0.045936395759717315
+        }
+      },
+      "low_lexical_overlap": {
+        "mrr": {
+          "delta": -0.009833812445683869,
+          "ci_95_low": -0.016722233421111465,
+          "ci_95_high": -0.002723905980522309
+        },
+        "recall_at_10": {
+          "delta": -0.024305555555555556,
+          "ci_95_low": -0.059027777777777776,
+          "ci_95_high": 0.006944444444444444
+        }
+      }
+    }
+  },
+  "example_method": "sae_dual_domain_ensemble",
+  "examples": {
+    "best": [
+      {
+        "pair_id": 149,
+        "query": "random forest",
+        "gold": "forest",
+        "retrieved_top1": "forest",
+        "gold_rank": 1.0,
+        "gold_candidate_pair_id": 149
+      },
+      {
+        "pair_id": 384,
+        "query": "Mean Field Approximation",
+        "gold": "The Law of Means",
+        "retrieved_top1": "The Law of Means",
+        "gold_rank": 1.0,
+        "gold_candidate_pair_id": 384
+      },
+      {
+        "pair_id": 183,
+        "query": "Geological folds",
+        "gold": "wrinkles",
+        "retrieved_top1": "wrinkles",
+        "gold_rank": 1.0,
+        "gold_candidate_pair_id": 183
+      },
+      {
+        "pair_id": 152,
+        "query": "KNN Algorithm",
+        "gold": "Finding Nearest Neighbors",
+        "retrieved_top1": "Finding Nearest Neighbors",
+        "gold_rank": 1.0,
+        "gold_candidate_pair_id": 152
+      },
+      {
+        "pair_id": 146,
+        "query": "Feature Engineering",
+        "gold": "Miner",
+        "retrieved_top1": "Miner",
+        "gold_rank": 1.0,
+        "gold_candidate_pair_id": 146
+      }
+    ],
+    "worst": [
+      {
+        "pair_id": 105,
+        "query": "Chemical Reaction",
+        "gold": "Urban Transportation",
+        "retrieved_top1": "Chemical Reactions",
+        "gold_rank": 397.0,
+        "gold_candidate_pair_id": 105
+      },
+      {
+        "pair_id": 157,
+        "query": "GAN Algorithm",
+        "gold": "Painter and Critic",
+        "retrieved_top1": "Gourmet",
+        "gold_rank": 383.0,
+        "gold_candidate_pair_id": 157
+      },
+      {
+        "pair_id": 143,
+        "query": "Software Development",
+        "gold": "The Long Journey",
+        "retrieved_top1": "Program Error",
+        "gold_rank": 372.0,
+        "gold_candidate_pair_id": 143
+      },
+      {
+        "pair_id": 68,
+        "query": "Blood sugar regulation",
+        "gold": "electronic scale automatically adjusts",
+        "retrieved_top1": "Human Body",
+        "gold_rank": 358.0,
+        "gold_candidate_pair_id": 68
+      },
+      {
+        "pair_id": 376,
+        "query": "Tight-Bind Approximation",
+        "gold": "Social Circle",
+        "retrieved_top1": "Biological Evolution",
+        "gold_rank": 354.0,
+        "gold_candidate_pair_id": 376
+      }
+    ]
+  },
+  "skipped": {},
+  "scope_caveats": [
+    "SCAR contains system descriptions, not scientific-paper abstracts.",
+    "This smoke test evaluates retrieval of known analogues, not whether a retrieved source improves downstream scientific ideation.",
+    "The negative pool is the other 399 SCAR candidates; it is not a purpose-built set of same-topic/different-mechanism hard negatives.",
+    "The two SAEs were trained on different scientific domains, not multiple random seeds; this is a domain-sensitivity check, not a feature-stability estimate.",
+    "Purpose-mechanism, LLM-schema, query-expansion, and random-diverse ideation baselines are intentionally deferred until this cheap gate is informative."
+  ]
+}

@@ -1,0 +1,422 @@
+{
+  "run": {
+    "generated_at_utc": "2026-08-31T22:20:23.365839+00:00",
+    "script": "hybrid_reranker.py",
+    "seed": 20260831
+  },
+  "question": "Can SAE complementarity be converted into held-out top-10 gains by a dense-shortlist reranker without mean-score fusion?",
+  "primary_method": "dense_idf_sae",
+  "primary_result": {
+    "verdict": "NO_HELD_OUT_HYBRID_GAIN",
+    "strong_support": false,
+    "improves_dense_point_estimate": false,
+    "recall_at_10": 0.2579505300353357,
+    "delta_over_dense": 0.0,
+    "delta_percentage_points": 0.0,
+    "canonical_pair_cluster_bootstrap_ci_95": [
+      -0.02992957746478873,
+      0.028368794326241134
+    ],
+    "pre_specified_strong_support_rule": "at least +2.0 percentage points over raw dense, positive canonical-pair-cluster bootstrap lower bound, and higher Recall@10 than every control",
+    "recall_at_10_minus_each_control": {
+      "dense_only": 0.0,
+      "dense_bm25": -0.0053003533568904415,
+      "dense_random_sparse": -0.007067137809187274,
+      "dense_unweighted_sae": 0.012367491166077743
+    },
+    "interpretation_rule": "Treat this as an exploratory bridge test: a positive held-out point estimate supports the Sparse Bridges direction; the clustered interval states uncertainty and is not used for post-hoc tuning."
+  },
+  "protocol": {
+    "benchmark": "SCAR English bidirectional cross-domain retrieval proxy",
+    "benchmark_url": "https://raw.githubusercontent.com/siyuyuan/scar/main/release/system_analogy_en.json",
+    "data_sha256": "12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369",
+    "embedding_cache_sha256": "ba182c6447de5fd4495e24d04df3e5bbd163737eaf09732401042fe6a76f7446",
+    "query_directions": 566,
+    "pair_groups": 283,
+    "canonical_fold_groups": 277,
+    "bootstrap_clusters": 277,
+    "candidates_per_direction": 400,
+    "dense_shortlist_size": 100,
+    "evaluation_k": 10,
+    "folds": 5,
+    "fold_assignment": "seeded SCAR pair-id split, then minimally merged by canonical unordered normalized system pair; both directions and duplicate pair rows share a fold",
+    "learner": "L2 logistic pairwise linear ranker, C=1, standardized features, all shortlist negatives, symmetric differences, equal total weight per train query",
+    "idf_definition": "per retrieval direction, log((400+1)/(candidate-side activation document frequency+1))+1; fixed-corpus indexing without labels",
+    "relevance": "any candidate with the same normalized target system name is relevant",
+    "tie_breaking": "score descending, candidate index ascending",
+    "shortlist_recall_ceiling": 0.7632508833922261,
+    "shortlist_recall_ceiling_percentage": 76.32508833922262,
+    "shortlist_retrievable_queries": 432,
+    "low_overlap_queries": 288
+  },
+  "checkpoints": {
+    "cslg": {
+      "filename": "csLG_64_9216.pth",
+      "domain": "cs.LG",
+      "sha256": "29073be46ce5ddceee53f7e9ebf46449e239c1bc29f57dfebced041833698752",
+      "path": "weights/csLG_64_9216.pth",
+      "source_revision": "https://huggingface.co/datasets/charlieoneill/saerchModels/tree/b2cbb184b58880b77a546511e11d8fd214c40556",
+      "d_model": 1536,
+      "n_latents": 9216,
+      "k": 64,
+      "auxk_training_config": 128,
+      "input_preprocessing": "raw float32 API vector",
+      "mean_positive_activations": 64.0
+    },
+    "astroph": {
+      "filename": "astroPH_64_9216.pth",
+      "domain": "astro.PH",
+      "sha256": "112e8a006ff0cc8e3b4439e1ef28df816564c5d9054974a763eaa69804cf02ed",
+      "path": "weights/astroPH_64_9216.pth",
+      "source_revision": "https://huggingface.co/datasets/charlieoneill/saerchModels/tree/b2cbb184b58880b77a546511e11d8fd214c40556",
+      "d_model": 1536,
+      "n_latents": 9216,
+      "k": 64,
+      "auxk_training_config": 128,
+      "input_preprocessing": "raw float32 API vector",
+      "mean_positive_activations": 64.0
+    }
+  },
+  "controls": {
+    "dense_only": "unchanged dense ordering",
+    "dense_bm25": "pairwise dense score/rank plus BM25",
+    "dense_random_sparse": "pairwise dense score/rank plus seeded random 9,216-D top-64 ReLU projection cosine, IDF bridge/rarity/count, and transpose reconstruction",
+    "dense_unweighted_sae": "pairwise dense score/rank plus separate cs.LG and astro.PH SAE cosines",
+    "dense_idf_sae": "primary full bridge model: dense, lexical, separate SAE cosine, IDF-min activation, overlap rarity/count, and reconstruction features"
+  },
+  "metrics": {
+    "dense_only": {
+      "recall_at_1": 0.045936395759717315,
+      "recall_at_5": 0.16784452296819788,
+      "recall_at_10": 0.2579505300353357,
+      "recall_at_10_percentage": 25.795053003533567,
+      "mrr_with_shortlist_misses_as_zero": 0.11646557587897587,
+      "median_rank_when_retrievable": 20.0,
+      "low_overlap_recall_at_10": 0.10416666666666667,
+      "top10_successes": 146
+    },
+    "dense_bm25": {
+      "recall_at_1": 0.05123674911660778,
+      "recall_at_5": 0.1625441696113074,
+      "recall_at_10": 0.26325088339222613,
+      "recall_at_10_percentage": 26.325088339222614,
+      "mrr_with_shortlist_misses_as_zero": 0.11873211192863288,
+      "median_rank_when_retrievable": 20.0,
+      "low_overlap_recall_at_10": 0.09375,
+      "top10_successes": 149,
+      "vs_dense": {
+        "delta": 0.00530035335689046,
+        "delta_percentage_points": 0.5300353356890459,
+        "ci_95_low": -0.007143497183819764,
+        "ci_95_high": 0.019299944403261653,
+        "ci_95_low_percentage_points": -0.7143497183819764,
+        "ci_95_high_percentage_points": 1.9299944403261653,
+        "rescues": 9,
+        "losses": 6,
+        "net_successes": 3
+      }
+    },
+    "dense_random_sparse": {
+      "recall_at_1": 0.04946996466431095,
+      "recall_at_5": 0.16431095406360424,
+      "recall_at_10": 0.26501766784452296,
+      "recall_at_10_percentage": 26.501766784452297,
+      "mrr_with_shortlist_misses_as_zero": 0.1183060757365405,
+      "median_rank_when_retrievable": 21.0,
+      "low_overlap_recall_at_10": 0.1111111111111111,
+      "top10_successes": 150,
+      "vs_dense": {
+        "delta": 0.007067137809187279,
+        "delta_percentage_points": 0.7067137809187279,
+        "ci_95_low": -0.0125,
+        "ci_95_high": 0.026785714285714284,
+        "ci_95_low_percentage_points": -1.25,
+        "ci_95_high_percentage_points": 2.6785714285714284,
+        "rescues": 17,
+        "losses": 13,
+        "net_successes": 4
+      }
+    },
+    "dense_unweighted_sae": {
+      "recall_at_1": 0.038869257950530034,
+      "recall_at_5": 0.15371024734982333,
+      "recall_at_10": 0.24558303886925795,
+      "recall_at_10_percentage": 24.558303886925795,
+      "mrr_with_shortlist_misses_as_zero": 0.11046894674983963,
+      "median_rank_when_retrievable": 23.0,
+      "low_overlap_recall_at_10": 0.09722222222222222,
+      "top10_successes": 139,
+      "vs_dense": {
+        "delta": -0.012367491166077738,
+        "delta_percentage_points": -1.2367491166077738,
+        "ci_95_low": -0.033928571428571426,
+        "ci_95_high": 0.008865248226950355,
+        "ci_95_low_percentage_points": -3.392857142857143,
+        "ci_95_high_percentage_points": 0.8865248226950355,
+        "rescues": 13,
+        "losses": 20,
+        "net_successes": -7
+      }
+    },
+    "dense_idf_sae": {
+      "recall_at_1": 0.045936395759717315,
+      "recall_at_5": 0.16431095406360424,
+      "recall_at_10": 0.2579505300353357,
+      "recall_at_10_percentage": 25.795053003533567,
+      "mrr_with_shortlist_misses_as_zero": 0.11797021805753505,
+      "median_rank_when_retrievable": 21.0,
+      "low_overlap_recall_at_10": 0.1284722222222222,
+      "top10_successes": 146,
+      "vs_dense": {
+        "delta": 0.0,
+        "delta_percentage_points": 0.0,
+        "ci_95_low": -0.02992957746478873,
+        "ci_95_high": 0.028368794326241134,
+        "ci_95_low_percentage_points": -2.992957746478873,
+        "ci_95_high_percentage_points": 2.8368794326241136,
+        "rescues": 30,
+        "losses": 30,
+        "net_successes": 0
+      }
+    }
+  },
+  "training_diagnostics": {
+    "dense_bm25": {
+      "features": [
+        "dense_cosine",
+        "dense_rank",
+        "bm25"
+      ],
+      "folds": [
+        {
+          "fold": 0,
+          "train_queries": 452,
+          "train_queries_with_shortlist_positive": 355,
+          "test_queries": 114,
+          "pairwise_rows": 105140
+        },
+        {
+          "fold": 1,
+          "train_queries": 454,
+          "train_queries_with_shortlist_positive": 345,
+          "test_queries": 112,
+          "pairwise_rows": 106332
+        },
+        {
+          "fold": 2,
+          "train_queries": 450,
+          "train_queries_with_shortlist_positive": 342,
+          "test_queries": 116,
+          "pairwise_rows": 101760
+        },
+        {
+          "fold": 3,
+          "train_queries": 456,
+          "train_queries_with_shortlist_positive": 348,
+          "test_queries": 110,
+          "pairwise_rows": 106430
+        },
+        {
+          "fold": 4,
+          "train_queries": 452,
+          "train_queries_with_shortlist_positive": 338,
+          "test_queries": 114,
+          "pairwise_rows": 98698
+        }
+      ],
+      "mean_standardized_pairwise_coefficients": {
+        "dense_cosine": 0.4876901346568143,
+        "dense_rank": -0.4591853550976387,
+        "bm25": 0.1611587001194204
+      }
+    },
+    "dense_random_sparse": {
+      "features": [
+        "dense_cosine",
+        "dense_rank",
+        "random_sparse_cosine",
+        "random_idf_min_activation",
+        "random_overlap_rarity",
+        "random_shared_feature_count",
+        "random_reconstruction_cosine"
+      ],
+      "folds": [
+        {
+          "fold": 0,
+          "train_queries": 452,
+          "train_queries_with_shortlist_positive": 355,
+          "test_queries": 114,
+          "pairwise_rows": 105140
+        },
+        {
+          "fold": 1,
+          "train_queries": 454,
+          "train_queries_with_shortlist_positive": 345,
+          "test_queries": 112,
+          "pairwise_rows": 106332
+        },
+        {
+          "fold": 2,
+          "train_queries": 450,
+          "train_queries_with_shortlist_positive": 342,
+          "test_queries": 116,
+          "pairwise_rows": 101760
+        },
+        {
+          "fold": 3,
+          "train_queries": 456,
+          "train_queries_with_shortlist_positive": 348,
+          "test_queries": 110,
+          "pairwise_rows": 106430
+        },
+        {
+          "fold": 4,
+          "train_queries": 452,
+          "train_queries_with_shortlist_positive": 338,
+          "test_queries": 114,
+          "pairwise_rows": 98698
+        }
+      ],
+      "mean_standardized_pairwise_coefficients": {
+        "dense_cosine": 0.7298691994494725,
+        "dense_rank": -0.3851094929470432,
+        "random_sparse_cosine": -0.46854476115186605,
+        "random_idf_min_activation": 0.03745826109007777,
+        "random_overlap_rarity": 0.06980512594489399,
+        "random_shared_feature_count": -0.08120708568503679,
+        "random_reconstruction_cosine": 0.335293998867252
+      }
+    },
+    "dense_unweighted_sae": {
+      "features": [
+        "dense_cosine",
+        "dense_rank",
+        "cslg_sae_cosine",
+        "astroph_sae_cosine"
+      ],
+      "folds": [
+        {
+          "fold": 0,
+          "train_queries": 452,
+          "train_queries_with_shortlist_positive": 355,
+          "test_queries": 114,
+          "pairwise_rows": 105140
+        },
+        {
+          "fold": 1,
+          "train_queries": 454,
+          "train_queries_with_shortlist_positive": 345,
+          "test_queries": 112,
+          "pairwise_rows": 106332
+        },
+        {
+          "fold": 2,
+          "train_queries": 450,
+          "train_queries_with_shortlist_positive": 342,
+          "test_queries": 116,
+          "pairwise_rows": 101760
+        },
+        {
+          "fold": 3,
+          "train_queries": 456,
+          "train_queries_with_shortlist_positive": 348,
+          "test_queries": 110,
+          "pairwise_rows": 106430
+        },
+        {
+          "fold": 4,
+          "train_queries": 452,
+          "train_queries_with_shortlist_positive": 338,
+          "test_queries": 114,
+          "pairwise_rows": 98698
+        }
+      ],
+      "mean_standardized_pairwise_coefficients": {
+        "dense_cosine": 0.7715758886282885,
+        "dense_rank": -0.40978414396846985,
+        "cslg_sae_cosine": -0.37474018861980907,
+        "astroph_sae_cosine": 0.19633976478143314
+      }
+    },
+    "dense_idf_sae": {
+      "features": [
+        "dense_cosine",
+        "dense_rank",
+        "bm25",
+        "lexical_jaccard",
+        "cslg_sae_cosine",
+        "astroph_sae_cosine",
+        "cslg_idf_min_activation",
+        "astroph_idf_min_activation",
+        "cslg_overlap_rarity",
+        "astroph_overlap_rarity",
+        "cslg_shared_feature_count",
+        "astroph_shared_feature_count",
+        "cslg_reconstruction_cosine",
+        "astroph_reconstruction_cosine"
+      ],
+      "folds": [
+        {
+          "fold": 0,
+          "train_queries": 452,
+          "train_queries_with_shortlist_positive": 355,
+          "test_queries": 114,
+          "pairwise_rows": 105140
+        },
+        {
+          "fold": 1,
+          "train_queries": 454,
+          "train_queries_with_shortlist_positive": 345,
+          "test_queries": 112,
+          "pairwise_rows": 106332
+        },
+        {
+          "fold": 2,
+          "train_queries": 450,
+          "train_queries_with_shortlist_positive": 342,
+          "test_queries": 116,
+          "pairwise_rows": 101760
+        },
+        {
+          "fold": 3,
+          "train_queries": 456,
+          "train_queries_with_shortlist_positive": 348,
+          "test_queries": 110,
+          "pairwise_rows": 106430
+        },
+        {
+          "fold": 4,
+          "train_queries": 452,
+          "train_queries_with_shortlist_positive": 338,
+          "test_queries": 114,
+          "pairwise_rows": 98698
+        }
+      ],
+      "mean_standardized_pairwise_coefficients": {
+        "dense_cosine": 0.5637609741987304,
+        "dense_rank": -0.3842165818822652,
+        "bm25": 0.12767865182524885,
+        "lexical_jaccard": -0.029527090836959285,
+        "cslg_sae_cosine": -0.6371389449068902,
+        "astroph_sae_cosine": 0.19559628966630965,
+        "cslg_idf_min_activation": 0.3687902201061488,
+        "astroph_idf_min_activation": 0.14905353270062088,
+        "cslg_overlap_rarity": 0.2225946742974363,
+        "astroph_overlap_rarity": 0.12276198872495932,
+        "cslg_shared_feature_count": -0.47025355556994486,
+        "astroph_shared_feature_count": -0.3629250588141233,
+        "cslg_reconstruction_cosine": 0.36184895284095575,
+        "astroph_reconstruction_cosine": 0.12802315312645027
+      }
+    }
+  },
+  "artifacts": {
+    "per_query_jsonl": "results/hybrid_queries.jsonl"
+  },
+  "scope_caveats": [
+    "SCAR uses system descriptions rather than a scientific-paper corpus.",
+    "The candidate corpus is fixed and visible, but pair labels and both query directions are held out together for every fitted prediction.",
+    "The random projection matches one SAE's latent dimensionality, top-k sparsity, and feature families, not empirical activation frequencies or the full two-dictionary parameter count.",
+    "This is a single pre-specified bridge test, not a tuned final reranker."
+  ]
+}
