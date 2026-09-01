@@ -122,6 +122,9 @@ def test_suppression_adds_exactly_one_decoder_coordinate_to_last_token() -> None
     assert edited_output[1] == "untouched-cache"
     assert torch.equal(edited[:, :-1, :], baseline[:, :-1, :])
     assert torch.equal(edited[:, -1, :] - baseline[:, -1, :], expected_delta)
+    assert editor.max_feature_activation > 0.0
+    assert editor.max_requested_delta_norm > 0.0
+    assert editor.max_delta_norm > 0.0
     # b_dec=99 makes a full SAE reconstruction obviously different; the hook
     # has changed only the selected feature's decoder coordinate.
     assert not torch.equal(edited[:, -1, :], sae.decode(sae.encode(hidden[:, -1, :])))

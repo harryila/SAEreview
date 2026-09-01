@@ -507,6 +507,13 @@ def _generate_real(
             if editor is not None and editor.last_requested_delta_norm is not None
             else None
         ),
+        "max_feature_activation": (
+            editor.max_feature_activation if editor is not None else None
+        ),
+        "max_requested_delta_norm": (
+            editor.max_requested_delta_norm if editor is not None else None
+        ),
+        "max_delta_norm": editor.max_delta_norm if editor is not None else None,
     }
     text = tokenizer.decode(generated_ids, skip_special_tokens=True)
     return (

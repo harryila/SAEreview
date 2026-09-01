@@ -195,6 +195,9 @@ class SAELastTokenEditor:
         self.last_feature_activation: torch.Tensor | None = None
         self.last_requested_delta_norm: torch.Tensor | None = None
         self.last_delta_norm: torch.Tensor | None = None
+        self.max_feature_activation = 0.0
+        self.max_requested_delta_norm = 0.0
+        self.max_delta_norm = 0.0
 
     def _noise_like(self, reference: torch.Tensor) -> torch.Tensor:
         seed = (self.spec.noise_seed + self.call_count * 1_000_003) % (2**63 - 1)
@@ -237,6 +240,10 @@ class SAELastTokenEditor:
         activations = self.sae.encode(last)
         feature = activations[..., self.spec.feature_id]
         self.last_feature_activation = feature.detach()
+        self.max_feature_activation = max(
+            self.max_feature_activation,
+            float(feature.detach().float().max().cpu()),
+        )
 
         if self.spec.mode == "suppress":
             replacement = feature * (1.0 - self.spec.strength)
@@ -278,6 +285,14 @@ class SAELastTokenEditor:
         self.last_delta_norm = torch.linalg.vector_norm(
             realized_delta, dim=-1
         ).detach()
+        self.max_requested_delta_norm = max(
+            self.max_requested_delta_norm,
+            float(self.last_requested_delta_norm.float().max().cpu()),
+        )
+        self.max_delta_norm = max(
+            self.max_delta_norm,
+            float(self.last_delta_norm.float().max().cpu()),
+        )
         self.call_count += 1
         return replace_hidden(edited)
 
