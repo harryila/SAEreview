@@ -356,6 +356,42 @@ def _generated_token_ids(bundle: Any, record: dict[str, Any]) -> tuple[list[int]
     return [int(value) for value in values], "retokenized_generated_text"
 
 
+def _align_generated_ids_at_boundary(
+    generated_ids: list[int],
+    independently_tokenized: list[int],
+    domain_index: int,
+    special_ids: set[int],
+) -> tuple[list[int] | None, str]:
+    """Verify the stored-token index at the domain boundary.
+
+    Decoding and then re-encoding a generated sequence is not guaranteed to
+    reproduce tokens after the boundary.  Causal capture only needs the stored
+    and offset-tokenized prefixes to agree through the first domain-value token.
+    """
+
+    if not 0 <= domain_index < len(independently_tokenized):
+        return None, "domain_token_index_out_of_range"
+    if generated_ids == independently_tokenized:
+        return generated_ids, "exact_match"
+
+    trailing = generated_ids[len(independently_tokenized) :]
+    if (
+        generated_ids[: len(independently_tokenized)] == independently_tokenized
+        and trailing
+        and all(value in special_ids for value in trailing)
+    ):
+        return independently_tokenized, "terminal_specials_stripped"
+
+    required_prefix = domain_index + 1
+    if (
+        len(generated_ids) >= required_prefix
+        and generated_ids[:required_prefix]
+        == independently_tokenized[:required_prefix]
+    ):
+        return generated_ids, "domain_boundary_prefix_verified"
+    return None, "stored_token_ids_do_not_match_boundary_tokenization"
+
+
 def _capture_pre_domain(
     bundle: Any,
     prompt_text: str,
@@ -374,24 +410,23 @@ def _capture_pre_domain(
         int(value)
         for value in bundle.tokenizer(text, add_special_tokens=False)["input_ids"]
     ]
-    if generated_ids != independently_tokenized:
-        trailing = generated_ids[len(independently_tokenized) :]
-        special_ids = {
-            int(value) for value in getattr(bundle.tokenizer, "all_special_ids", [])
+    special_ids = {
+        int(value) for value in getattr(bundle.tokenizer, "all_special_ids", [])
+    }
+    generated_ids, token_alignment = _align_generated_ids_at_boundary(
+        generated_ids,
+        independently_tokenized,
+        domain_index,
+        special_ids,
+    )
+    if generated_ids is None:
+        return None, {
+            "status": "unresolved",
+            "locator": token_alignment,
+            "outcome_label_source": "none",
         }
-        if (
-            generated_ids[: len(independently_tokenized)] == independently_tokenized
-            and trailing
-            and all(value in special_ids for value in trailing)
-        ):
-            generated_ids = independently_tokenized
-            token_source += "+terminal_specials_stripped"
-        else:
-            return None, {
-                "status": "unresolved",
-                "locator": "stored_token_ids_do_not_match_offset_tokenization",
-                "outcome_label_source": "none",
-            }
+    if token_alignment != "exact_match":
+        token_source += "+" + token_alignment
     if not 0 <= domain_index < len(generated_ids):
         return None, {
             "status": "unresolved",
@@ -418,6 +453,7 @@ def _capture_pre_domain(
         "locator": locator,
         "locator_field": "generated target_domain (timing only, never outcome label)",
         "generated_token_source": token_source,
+        "boundary_token_alignment": token_alignment,
         "domain_token_index": domain_index,
         "pre_domain_sequence_position": pre_position,
         "outcome_label_source": "independent blinded classifier, joined later",
