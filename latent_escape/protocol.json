@@ -1,15 +1,16 @@
 {
   "schema_version": 1,
   "protocol_id": "latent-escape-mvp-v1",
-  "protocol_revision": 2,
+  "protocol_revision": 3,
   "created_at": "2026-08-31",
   "status": "development_not_run",
-  "amendment_note": "Revision 2 was frozen before any development generation. It adds prompt-level feature discovery, maximum-statistic permutation correction, pinned independent domain labels and audits, quantitative pre-domain evidence, a larger untouched test, a power check, schema and quality guardrails, and a development intervention gate cryptographically bound to test access.",
+  "amendment_note": "Revision 3 was frozen before any development generation. It limits blinded structural-quality ratings to baseline versus full-strength targeted suppression and removes any serendipity claim; all controls still receive independent domain labels. Revision 2 added prompt-level feature discovery, maximum-statistic permutation correction, pinned independent labels and audits, quantitative pre-domain evidence, a larger untouched test, a power check, and a development intervention gate bound to test access.",
   "research_question": "Does suppressing an SAE feature selected for a common analogy target domain causally reduce selection of that domain without materially reducing structural quality?",
   "claim_boundary": {
     "positive_claim": "A development-selected, interpretable SAE feature causally influences analogy-domain selection in the pinned model and prompt population.",
     "not_claimed": [
       "SAEs generally improve creativity",
+      "improved serendipity, usefulness, scientific discovery, or overall analogy quality",
       "the feature is a universal or seed-stable ontology element",
       "the retrieval pilot supports the generation hypothesis",
       "SCAR is representative of all scientific analogy prompts"
@@ -165,6 +166,12 @@
     ],
     "quality_guardrail": {
       "measure": "Blind 1-5 structural-correspondence rubric, with condition labels and feature explanations hidden",
+      "required_arms": [
+        "baseline",
+        "targeted_feature_suppression"
+      ],
+      "targeted_strength": 1.0,
+      "scope": "Rate baseline and full-strength targeted suppression only. Matched-random features, partial doses, and other controls still require independent domain labels and JSON-validity scoring but not structural-quality ratings.",
       "judge_protocol_id": "blinded-human-structural-correspondence-v1",
       "rubric": "Rate structural correspondence from 1 (surface-only or broken) to 5 (faithful causal roles, relations, and boundary conditions).",
       "rubric_sha256": "73e59c355f9cd6cf2cb62cd8f22a71983ac73d02f58746aa4235fce33b7f7e61",
@@ -172,7 +179,7 @@
       "noninferiority_margin": -0.25,
       "unit": "rubric points relative to baseline"
     },
-    "claim_policy": "The primary endpoint supports only causal control of target-domain selection. Claim reduced homogeneity only if prompt-level domain entropy and distinct-domain count both improve; claim improved serendipity only if those improve while structural quality remains non-inferior."
+    "claim_policy": "The selected-domain contrasts support causal influence on target-domain selection when the JSON-validity guardrail passes. Claim reduced domain homogeneity only if prompt-level entropy and distinct-domain count both improve while structural quality remains non-inferior. Serendipity, creativity, usefulness, scientific discovery, and overall analogy improvement are not evaluated."
   },
   "power": {
     "required_before_development_generation": true,
@@ -194,7 +201,7 @@
     "proceed_only_if": [
       "Full suppression changes the intended-domain rate more than the mean of the five matched-random feature controls.",
       "The intended-domain response is monotone in the correct direction across at least two adjacent dose steps.",
-      "Mean blinded structural quality remains within 0.25 rubric points of baseline.",
+      "Mean blinded structural quality for full-strength targeted suppression remains within 0.25 rubric points of baseline.",
       "Required-schema-valid JSON rate is no more than 2 percentage points below baseline."
     ]
   },
@@ -204,7 +211,7 @@
     "bootstrap_seed": 20260831,
     "interval": "two-sided percentile 95 percent",
     "population_order": "Report the full 120-prompt test population first, then the development-thresholded eligible-prompt analysis as secondary.",
-    "strong_support_rule": "Both primary upper confidence bounds are below zero and the structural-quality lower confidence bound is at least -0.25 rubric points.",
+    "strong_support_rule": "Causal target-domain-selection support requires both selected-domain upper confidence bounds below zero and the JSON-validity guardrail. Reduced-homogeneity support additionally requires positive entropy and distinct-domain-count lower bounds plus a structural-quality lower bound of at least -0.25 rubric points.",
     "no_adaptation": "After test_frozen.json is written, do not change the feature, controls, intervention, seeds, taxonomy, rubric, judge, exclusions, or analysis."
   },
   "required_before_test": [

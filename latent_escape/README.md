@@ -33,7 +33,8 @@ not reused as evidence for this hypothesis.
 - Primary causal endpoint: prompt-clustered change in the selected target-domain
   rate under targeted suppression, versus baseline and matched-random suppression.
 - Guardrail: blinded structural-quality non-inferiority with a 0.25-point margin
-  on a five-point rubric.
+  on a five-point rubric, rated only for baseline versus full-strength targeted
+  suppression. Random controls still receive independent domain labels.
 - Secondary distance metric: normalized cosine distance from source text to the
   generated target system/roles using `sentence-transformers/all-MiniLM-L6-v2`
   at revision `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`.
@@ -96,7 +97,9 @@ The remaining CLIs are intentionally separate at the manual checkpoints:
 
 - `generate.py` runs baseline, dose, targeted, matched-random, activation-noise,
   diversity-prompt, temperature, and promotion conditions with paired seeds.
-- `evaluate.py prepare-quality` exports a condition-blinded 1–5 quality queue.
+- `evaluate.py prepare-quality` exports a condition-blinded 1–5 quality queue
+  containing only baseline and full-strength targeted outputs; partial doses and
+  random/other controls are excluded automatically.
 - `evaluate.py distance` computes the pinned secondary semantic-distance metric.
 - `evaluate.py run` reports clustered bootstrap results for the full population
   first and the development-frozen eligible-prompt population second.
@@ -107,6 +110,11 @@ prompts, four samples, feature, and five controls. Generate suppression doses
 `0.25`, `0.5`, and `1.0`, then evaluate with the same
 `--development-plan`. The evaluator refuses any prompt/sample mismatch and emits
 `development_intervention_gate.status=pass|stop`.
+
+The selected-domain contrasts can support causal influence on target-domain
+selection. Entropy and distinct-domain gains with non-inferior quality can
+additionally support reduced domain homogeneity. This study does not evaluate
+serendipity, usefulness, scientific discovery, or overall analogy improvement.
 
 Copy `test_config.template.json` to ignored `test_frozen.json` only after the
 development gate passes. Test commands require that completed file, the exact

@@ -28,6 +28,7 @@ PROTOCOL_PATH = ROOT / "latent_escape" / "protocol.json"
 POWER_REPORT_PATH = ROOT / "latent_escape" / "power_report.json"
 DISTANCE_MODEL_REPO = "sentence-transformers/all-MiniLM-L6-v2"
 DISTANCE_MODEL_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
+QUALITY_REQUIRED_ARMS = frozenset({"baseline", "targeted_feature_suppression"})
 
 
 def sha256_bytes(payload: bytes) -> str:
@@ -160,6 +161,11 @@ def arm_name(record: dict[str, Any]) -> str:
         if not math.isclose(strength, 1.0, rel_tol=0.0, abs_tol=1e-12):
             return f"targeted_feature_suppression:dose={format(strength, '.12g')}"
     return condition
+
+
+def requires_structural_quality(record: dict[str, Any]) -> bool:
+    """Return whether the frozen primary quality guardrail covers this output."""
+    return arm_name(record) in QUALITY_REQUIRED_ARMS
 
 
 def structural_quality(row: dict[str, Any]) -> float:
@@ -295,6 +301,12 @@ def prepare_quality_command(args: argparse.Namespace) -> int:
         generations = [row for row in generations if row.get("split") == args.split]
     if not generations:
         raise ValueError("no generations selected for quality queue")
+    all_generation_count = len(generations)
+    generations = [row for row in generations if requires_structural_quality(row)]
+    if not generations:
+        raise ValueError(
+            "no baseline or full-strength targeted outputs selected for quality queue"
+        )
     manifest_path = args.prompt_manifest
     manifest_rows = read_jsonl_many([manifest_path])
     manifest = {str(row["prompt_id"]): row for row in manifest_rows}
@@ -353,6 +365,8 @@ def prepare_quality_command(args: argparse.Namespace) -> int:
         ],
         "queue_sha256": sha256_bytes(payload),
         "item_count": len(queue),
+        "included_arms": sorted({arm_name(row) for row in generations}),
+        "excluded_generation_count": all_generation_count - len(generations),
         "judge_protocol_id": quality_protocol["judge_protocol_id"],
         "judge_prompt_sha256": quality_protocol["rubric_sha256"],
         "hidden_fields": [
@@ -731,28 +745,45 @@ def compare_population(
         random_values = [
             [metrics[arm][prompt][metric] for arm in random_arms] for prompt in ordered
         ]
-        if any(value is None for value in baseline_values + targeted_values) or any(
-            value is None for row in random_values for value in row
-        ):
-            comparisons[metric] = {
-                "targeted_minus_baseline": {"estimate": None, "ci95": None, "prompt_count": 0},
-                "targeted_minus_random_mean": {"estimate": None, "ci95": None, "prompt_count": 0},
-            }
-            continue
-        baseline_array = np.asarray(baseline_values, dtype=np.float64)
-        targeted_array = np.asarray(targeted_values, dtype=np.float64)
-        random_array = np.asarray(random_values, dtype=np.float64).mean(axis=1)
-        comparisons[metric] = {
-            "targeted_minus_baseline": clustered_summary(
-                targeted_array - baseline_array, boot
-            ),
-            "random_mean_minus_baseline": clustered_summary(
-                random_array - baseline_array, boot
-            ),
-            "targeted_minus_random_mean": clustered_summary(
-                targeted_array - random_array, boot
-            ),
+        unavailable = {"estimate": None, "ci95": None, "prompt_count": 0}
+        comparison = {
+            "targeted_minus_baseline": dict(unavailable),
+            "random_mean_minus_baseline": dict(unavailable),
+            "targeted_minus_random_mean": dict(unavailable),
         }
+        baseline_complete = not any(value is None for value in baseline_values)
+        targeted_complete = not any(value is None for value in targeted_values)
+        random_complete = not any(
+            value is None for row in random_values for value in row
+        )
+        baseline_array = (
+            np.asarray(baseline_values, dtype=np.float64)
+            if baseline_complete
+            else None
+        )
+        targeted_array = (
+            np.asarray(targeted_values, dtype=np.float64)
+            if targeted_complete
+            else None
+        )
+        random_array = (
+            np.asarray(random_values, dtype=np.float64).mean(axis=1)
+            if random_complete
+            else None
+        )
+        if baseline_array is not None and targeted_array is not None:
+            comparison["targeted_minus_baseline"] = clustered_summary(
+                targeted_array - baseline_array, boot
+            )
+        if baseline_array is not None and random_array is not None:
+            comparison["random_mean_minus_baseline"] = clustered_summary(
+                random_array - baseline_array, boot
+            )
+        if targeted_array is not None and random_array is not None:
+            comparison["targeted_minus_random_mean"] = clustered_summary(
+                targeted_array - random_array, boot
+            )
+        comparisons[metric] = comparison
 
     primary = comparisons["selected_domain_rate"]
     quality = comparisons["structural_quality"]["targeted_minus_baseline"]
@@ -771,8 +802,10 @@ def compare_population(
     distinct_change = comparisons["distinct_domain_count"]["targeted_minus_baseline"]
     entropy_pass = bool(entropy_change["ci95"] and entropy_change["ci95"][0] > 0)
     distinct_pass = bool(distinct_change["ci95"] and distinct_change["ci95"][0] > 0)
-    causal_control = primary_pass and specificity_pass and quality_pass and validity_pass
-    reduced_homogeneity = causal_control and entropy_pass and distinct_pass
+    causal_selection = primary_pass and specificity_pass and validity_pass
+    reduced_homogeneity = (
+        causal_selection and entropy_pass and distinct_pass and quality_pass
+    )
     return {
         "population": name,
         "prompt_count": len(ordered),
@@ -788,14 +821,14 @@ def compare_population(
             "distinct_domain_lower_ci_above_zero": distinct_pass,
         },
         "claim_boundary": {
-            "causal_target_domain_control_supported": causal_control,
+            "causal_target_domain_selection_supported": causal_selection,
             "reduced_homogeneity_supported": reduced_homogeneity,
-            "improved_serendipity_supported": reduced_homogeneity and quality_pass,
+            "serendipity_evaluated": False,
             "note": (
-                "The selected-domain contrasts identify the causal direction; this "
-                "study's positive decision also requires quality and JSON guardrails. "
-                "Reduced homogeneity additionally requires entropy and distinct-domain "
-                "improvements."
+                "Selected-domain contrasts support causal target-domain selection when "
+                "the JSON-validity guardrail passes. Reduced homogeneity additionally "
+                "requires entropy and distinct-domain gains with non-inferior structural "
+                "quality. Serendipity is not evaluated."
             ),
         },
     }
@@ -894,8 +927,11 @@ def evaluate_command(args: argparse.Namespace) -> int:
         if row.get("domain_label") not in taxonomy:
             raise ValueError(f"label outside frozen taxonomy: {row.get('domain_label')!r}")
         label_map[key] = row
+    quality_generations = [
+        generation for generation in generations if requires_structural_quality(generation)
+    ]
     quality_id_mapping: dict[str, tuple[str, str, str, int, int]] = {}
-    for generation in generations:
+    for generation in quality_generations:
         blind_id = quality_blind_id(generation)
         if blind_id in quality_id_mapping:
             raise ValueError(f"duplicate blind quality ID {blind_id}")
@@ -909,9 +945,14 @@ def evaluate_command(args: argparse.Namespace) -> int:
         int(protocol["outcomes"]["quality_guardrail"]["ratings_per_generation"]),
     )
     distance_map, distance_provenance = load_distances(args.distance_metrics)
+    expected_quality_keys = {
+        join_key(generation) for generation in quality_generations
+    }
     expected_metric_keys = {join_key(generation) for generation in generations}
-    if args.quality_labels and set(quality_map) != expected_metric_keys:
-        raise ValueError("quality labels do not cover every generation exactly once")
+    if args.quality_labels and set(quality_map) != expected_quality_keys:
+        raise ValueError(
+            "quality labels must cover baseline and full-strength targeted outputs exactly once"
+        )
     if args.distance_metrics and set(distance_map) != expected_metric_keys:
         raise ValueError("semantic-distance rows do not cover every generation exactly once")
 
@@ -1276,8 +1317,8 @@ def evaluate_command(args: argparse.Namespace) -> int:
             {
                 "split": args.split,
                 "full_prompt_count": full["prompt_count"],
-                "causal_control_supported": full["claim_boundary"][
-                    "causal_target_domain_control_supported"
+                "causal_target_domain_selection_supported": full["claim_boundary"][
+                    "causal_target_domain_selection_supported"
                 ],
                 "reduced_homogeneity_supported": full["claim_boundary"][
                     "reduced_homogeneity_supported"

@@ -28,7 +28,7 @@ def require(condition: bool, message: str) -> None:
 def validate_protocol(protocol: dict[str, Any]) -> None:
     require(protocol["schema_version"] == 1, "unsupported schema_version")
     require(protocol["protocol_id"] == "latent-escape-mvp-v1", "wrong protocol_id")
-    require(protocol["protocol_revision"] == 2, "unexpected protocol revision")
+    require(protocol["protocol_revision"] == 3, "unexpected protocol revision")
     require(protocol["status"] == "development_not_run", "unexpected run status")
 
     artifacts = protocol["artifacts"]
@@ -77,6 +77,12 @@ def validate_protocol(protocol: dict[str, Any]) -> None:
         == quality["rubric_sha256"]
         and quality["ratings_per_generation"] == 1,
         "quality rubric hash or rating count drifted",
+    )
+    require(
+        quality["required_arms"]
+        == ["baseline", "targeted_feature_suppression"]
+        and quality["targeted_strength"] == 1.0,
+        "structural-quality scope must remain baseline versus full-strength targeted",
     )
 
     required_conditions = {
