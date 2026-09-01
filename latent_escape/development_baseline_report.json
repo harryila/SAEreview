@@ -1,0 +1,80 @@
+{
+  "activation_recapture": {
+    "generation_regenerated": false,
+    "generation_tokens_replayed_for_activation_capture": true,
+    "labels_recomputed": false,
+    "original_pre_domain_activation_sha256": "66062df2477866e0781d6d751c7623c8210fabbe782908a3c7391460fd15e8de",
+    "original_prompt_activation_sha256": "fbb788b7b64bf2beee93a4e8748fd07d7270191448e01a1b3ced0fcbabe62900",
+    "reason": "verify stored/re-tokenized equality only through the causal domain boundary",
+    "source_generation_sha256": "bd0f25d222ccf10cf2af3a8984d52e85678024fc25387a05df5abb5f2d6c6be2",
+    "test_split_touched": false
+  },
+  "artifact": "latent_escape_development_baseline_run",
+  "artifact_sha256": {
+    "generations": "bd0f25d222ccf10cf2af3a8984d52e85678024fc25387a05df5abb5f2d6c6be2",
+    "independent_labels": "9d672cfdc81f07f8333a4bd939efffe9f8914efc68345c9cf5fb2f936b4fd95a",
+    "manual_audit_queue": "e60a67d2bfab0488c7c190ef3ebe546b0ad23b446fc960e3d07e964f36ac020b",
+    "pre_domain_activations": "d726e00c27137ecce805204c60206163b55b92921b9a591d4fb82ac53b56cf1e",
+    "prompt_activations": "3fb3701c2c5e0c5b5772a82d38e1317ecdb140c83e36cabb6eb77839a41b15a4"
+  },
+  "capture_git_commit": "8ab87818538ab4bc803ca131c72f2bb6563d56af",
+  "capture_run_id": "afb4616c903d58c77ed5dd055644cff7640497fea16caa65eebbc909d59c47c1",
+  "classifier_domain_counts": {
+    "arts/literature": 15,
+    "biology/ecology": 70,
+    "chemistry/materials": 21,
+    "computer science/software": 60,
+    "economics/markets": 11,
+    "education/learning": 17,
+    "engineering/control": 5,
+    "everyday/household": 3,
+    "geography/earth/environment": 11,
+    "history": 18,
+    "law/policy": 7,
+    "medicine/public health": 3,
+    "organizations/governance": 5,
+    "other": 383,
+    "physics": 2,
+    "psychology/cognition": 1,
+    "sociology/culture": 1,
+    "sports/games": 7
+  },
+  "classifier_id": [
+    "facebook/bart-large-mnli@d7645e127eaf1aefc7862fd59a17a5aa8558b8ce"
+  ],
+  "created_at_utc": "2026-09-01T11:16:44.225184+00:00",
+  "generation_count": 640,
+  "generation_git_commit": "c28f65a36515cfc9859dff07dc0ef7b4bc255023",
+  "git_commit": "c28f65a36515cfc9859dff07dc0ef7b4bc255023",
+  "independent_label_count": 640,
+  "manual_audit": {
+    "completed_count": 0,
+    "queued_count": 64,
+    "status": "pending"
+  },
+  "note": "Baseline generations and labels are unchanged. Activations were replayed from the frozen development generations after a boundary-alignment fix. No feature was selected and no causal intervention or confirmatory test was run.",
+  "pre_domain_boundary": {
+    "alignment_counts": {
+      "domain_boundary_prefix_verified": 380,
+      "exact_match": 58,
+      "terminal_specials_stripped": 202
+    },
+    "minimum_required": 0.9,
+    "resolution_rate": 1.0,
+    "resolved_count": 640,
+    "status_counts": {
+      "captured": 640
+    },
+    "total_count": 640
+  },
+  "prompt_count": 80,
+  "samples_per_prompt": [
+    8
+  ],
+  "schema_valid_count": 584,
+  "schema_version": 1,
+  "split": "development",
+  "status": "baseline_complete_manual_label_audit_pending",
+  "test_split_touched": false,
+  "updated_at_utc": "2026-09-01T11:39:01.202474+00:00"
+}

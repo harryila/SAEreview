@@ -1,7 +1,9 @@
 # Latent Escape: Causal Control of Analogy Target-Domain Selection with Sparse Autoencoder Features
 
-**Status: the real-stack two-prompt GPU smoke test passed; the development
-experiment has not been run and no empirical result is claimed.**
+**Status: the 640-output development baseline, prompt-activation capture, and
+pinned independent domain labeling are complete. The blinded manual label audit
+is pending; no feature has been selected, no causal intervention or confirmatory
+test has been run, and no empirical causal result is claimed.**
 
 Research question: do sparse, interpretable domain-attractor features causally
 contribute to Gemma 2 repeatedly choosing familiar analogy domains, and can
@@ -64,6 +66,30 @@ See [`gpu_smoke_report.json`](gpu_smoke_report.json) for artifact hashes and exa
 runtime details. Feature `8161` was chosen only because it had the largest positive
 activation in these two prompts; it is a plumbing check and is not the development
 feature-discovery result or evidence for the hypothesis.
+
+## Development baseline
+
+The frozen 80-prompt development split was run at eight samples per prompt on
+the real stack, producing 640 baseline generations, 80 prompt-level SAE vectors
+of width 16,384, 640 pinned BART domain labels, and a blinded 64-item manual-audit
+queue. The untouched test split was not accessed. Strict JSON validation passed
+for 584/640 generations. Of the 56 strict-invalid outputs, 55 reached the
+384-token limit (17 after a complete schema-valid object and 38 while incomplete),
+and one ended early with malformed quoting. All rows are preserved; none were
+selectively regenerated, salvaged, or dropped.
+
+A capture-only replay at commit `8ab8781` corrected token alignment after the
+causal domain boundary and resolved 640/640 pre-domain boundaries, above the
+frozen 90% minimum. Prompt activation values and decoder norms remained
+bitwise-identical; generations, independent labels, and the audit queue remained
+byte-identical.
+
+See [`development_baseline_report.json`](development_baseline_report.json) for
+the frozen commit, artifact hashes, aggregate label counts, and audit status.
+Those labels remain unvalidated until the blinded audit is completed, so this
+baseline is not yet eligible for feature discovery. The preregistration state in
+[`protocol.json`](protocol.json) remains byte-for-byte unchanged; live execution
+state is recorded separately in the run report.
 
 ## Prepare and verify prompts
 
