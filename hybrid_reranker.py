@@ -967,6 +967,8 @@ def main() -> int:
         },
         "scope_caveats": [
             "SCAR uses system descriptions rather than a scientific-paper corpus.",
+            "The low-lexical-overlap result is a post-hoc exploratory subgroup; it "
+            "has no standalone confidence interval and is not confirmatory.",
             "The candidate corpus is fixed and visible, but pair labels and both query "
             "directions are held out together for every fitted prediction.",
             "The random projection matches one SAE's latent dimensionality, top-k "

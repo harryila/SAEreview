@@ -529,6 +529,8 @@ def main() -> int:
         },
         "scope_caveats": [
             "SCAR contains system descriptions rather than scientific-paper abstracts.",
+            "The low-lexical-overlap split is a post-hoc exploratory subgroup; it "
+            "has no standalone confidence interval and is not confirmatory.",
             "Best-of-two SAE success is an oracle diagnostic, not a deployable fusion rule.",
             "The gate tests direct latent-space complementarity only; it does not test "
             "IDF-weighted feature evidence or a learned reranker.",

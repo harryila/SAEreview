@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite the software and the upstream works listed in CITATIONS.md."
+title: "SAEreview: Retrieval Pilot and Latent Escape Protocol"
+type: software
+authors:
+  - family-names: Ilanyan
+    given-names: Harry
+version: 0.2.0
+date-released: 2026-08-31
+repository-code: "https://github.com/harryila/SAEreview"
+url: "https://github.com/harryila/SAEreview"
+license: MIT
+keywords:
+  - sparse autoencoders
+  - analogical reasoning
+  - interpretability
+  - retrieval
+  - activation steering

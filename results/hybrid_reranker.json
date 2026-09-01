@@ -1,6 +1,6 @@
 {
   "run": {
-    "generated_at_utc": "2026-08-31T22:20:23.365839+00:00",
+    "generated_at_utc": "2026-09-01T01:50:15.905521+00:00",
     "script": "hybrid_reranker.py",
     "seed": 20260831
   },
@@ -415,6 +415,7 @@
   },
   "scope_caveats": [
     "SCAR uses system descriptions rather than a scientific-paper corpus.",
+    "The low-lexical-overlap result is a post-hoc exploratory subgroup; it has no standalone confidence interval and is not confirmatory.",
     "The candidate corpus is fixed and visible, but pair labels and both query directions are held out together for every fitted prediction.",
     "The random projection matches one SAE's latent dimensionality, top-k sparsity, and feature families, not empirical activation frequencies or the full two-dictionary parameter count.",
     "This is a single pre-specified bridge test, not a tuned final reranker."

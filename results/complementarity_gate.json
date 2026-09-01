@@ -1,6 +1,6 @@
 {
   "run": {
-    "generated_at_utc": "2026-08-31T22:20:16.541959+00:00",
+    "generated_at_utc": "2026-09-01T01:50:06.862976+00:00",
     "script": "complementarity_gate.py"
   },
   "hypothesis": "Inferior global SAE retrieval may still rescue enough dense top-10 misses to justify a shortlist reranker.",
@@ -163,6 +163,7 @@
   },
   "scope_caveats": [
     "SCAR contains system descriptions rather than scientific-paper abstracts.",
+    "The low-lexical-overlap split is a post-hoc exploratory subgroup; it has no standalone confidence interval and is not confirmatory.",
     "Best-of-two SAE success is an oracle diagnostic, not a deployable fusion rule.",
     "The gate tests direct latent-space complementarity only; it does not test IDF-weighted feature evidence or a learned reranker."
   ]

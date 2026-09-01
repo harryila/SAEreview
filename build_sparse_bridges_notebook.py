@@ -55,7 +55,13 @@ from IPython.display import HTML, display
 
 ROOT = Path.cwd()
 assert (ROOT / "complementarity_gate.py").exists(), ROOT
-PYTHON = ROOT / ".venv/bin/python"
+PYTHON = Path(sys.executable)
+RUN_DIR = ROOT / ".cache" / "notebook_run"
+RUN_DIR.mkdir(parents=True, exist_ok=True)
+GATE_SUMMARY = RUN_DIR / "complementarity_gate.json"
+GATE_QUERIES = RUN_DIR / "complementarity_queries.jsonl"
+HYBRID_SUMMARY = RUN_DIR / "hybrid_reranker.json"
+HYBRID_QUERIES = RUN_DIR / "hybrid_queries.jsonl"
 
 def show_table(rows, formatters=None):
     formatters = formatters or {}
@@ -77,9 +83,20 @@ def show_table(rows, formatters=None):
         "".join(body) + "</tbody></table>"
     ))
 
-for script in ("complementarity_gate.py", "hybrid_reranker.py"):
+jobs = (
+    ("complementarity_gate.py", GATE_SUMMARY, GATE_QUERIES),
+    ("hybrid_reranker.py", HYBRID_SUMMARY, HYBRID_QUERIES),
+)
+for script, summary_path, queries_path in jobs:
     completed = subprocess.run(
-        [str(PYTHON), script],
+        [
+            str(PYTHON),
+            script,
+            "--summary",
+            str(summary_path),
+            "--queries",
+            str(queries_path),
+        ],
         cwd=ROOT,
         check=True,
         capture_output=True,
@@ -100,10 +117,10 @@ diagnostic, not a deployable score fusion.
     ),
     code(
         """
-gate = json.loads((ROOT / "results/complementarity_gate.json").read_text())
+gate = json.loads(GATE_SUMMARY.read_text())
 gate_queries = [
     json.loads(line)
-    for line in (ROOT / "results/complementarity_queries.jsonl").read_text().splitlines()
+    for line in GATE_QUERIES.read_text().splitlines()
     if line.strip()
 ]
 overall = gate["overall"]
@@ -195,10 +212,10 @@ reconstruction cosine. Controls use the same folds and learner.
     ),
     code(
         """
-hybrid = json.loads((ROOT / "results/hybrid_reranker.json").read_text())
+hybrid = json.loads(HYBRID_SUMMARY.read_text())
 hybrid_queries = [
     json.loads(line)
-    for line in (ROOT / "results/hybrid_queries.jsonl").read_text().splitlines()
+    for line in HYBRID_QUERIES.read_text().splitlines()
     if line.strip()
 ]
 metrics = hybrid["metrics"]

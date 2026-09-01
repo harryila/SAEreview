@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "protocol_id": "latent-escape-mvp-v1",
+  "created_at": "2026-08-31",
+  "status": "development_not_run",
+  "research_question": "Does suppressing an SAE feature selected for a common analogy target domain causally reduce selection of that domain without materially reducing structural quality?",
+  "claim_boundary": {
+    "positive_claim": "A development-selected, interpretable SAE feature causally influences analogy-domain selection in the pinned model and prompt population.",
+    "not_claimed": [
+      "SAEs generally improve creativity",
+      "the feature is a universal or seed-stable ontology element",
+      "the retrieval pilot supports the generation hypothesis",
+      "SCAR is representative of all scientific analogy prompts"
+    ]
+  },
+  "artifacts": {
+    "model": {
+      "repo_id": "google/gemma-2-9b-it",
+      "revision": "11c9b309abf73637e4b6f9a3fa1e92e615547819",
+      "dtype": "bfloat16",
+      "quantization": "none",
+      "chat_template": "official Gemma instruction template; no system role"
+    },
+    "sae": {
+      "repo_id": "google/gemma-scope-9b-it-res",
+      "revision": "e86af97a5b6fbbccca28ab654f2fda1b0768f770",
+      "sae_lens_release": "gemma-scope-9b-it-res-canonical",
+      "sae_lens_id": "layer_20/width_16k/canonical",
+      "path": "layer_20/width_16k/average_l0_91/params.npz",
+      "sha256": "bbd770b6f8b92a2fe7498e05bd6274c6cfa89ebc08fb972c0e842840737f1a82",
+      "layer_zero_indexed": 20,
+      "site": "post-layer residual output",
+      "width": 16384,
+      "calculation_dtype": "float32"
+    }
+  },
+  "stimuli": {
+    "source": "SCAR system descriptions at the repository-pinned commit; source side only",
+    "source_sha256": "12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369",
+    "selection_seed": "latent-escape-prompts-v1",
+    "prompt_count": 160,
+    "development_count": 80,
+    "test_count": 80,
+    "grouping": "At most one side of any SCAR pair is selected, so no known pair relation crosses development and test.",
+    "expected_manifest_sha256": "b110039e3be33f81856d0a790cbcefbec0222a54f472a3695a98e3d26d19cc19",
+    "leakage_rule": "Do not pass or score against the paired SCAR target, mappings, or explanations. Do not inspect test generations until test_frozen.json exists."
+  },
+  "generation": {
+    "development_baseline_samples_per_prompt": 8,
+    "test_paired_samples_per_prompt_per_condition": 8,
+    "seed_base": 20260831,
+    "max_new_tokens": 384,
+    "baseline_temperature": 0.8,
+    "baseline_top_p": 0.95,
+    "higher_temperature": 1.1,
+    "higher_temperature_top_p": 0.95,
+    "batch_size": 1
+  },
+  "target_domain_taxonomy": [
+    "biology/ecology",
+    "medicine/public health",
+    "physics",
+    "chemistry/materials",
+    "engineering/control",
+    "computer science/software",
+    "AI/neural networks",
+    "economics/markets",
+    "organizations/governance",
+    "sociology/culture",
+    "psychology/cognition",
+    "education/learning",
+    "law/policy",
+    "history",
+    "arts/literature",
+    "sports/games",
+    "geography/earth/environment",
+    "everyday/household",
+    "other"
+  ],
+  "feature_discovery": {
+    "selection_count": 1,
+    "development_only": true,
+    "criteria": [
+      "The target domain accounts for at least 10 percent of development outputs.",
+      "Feature activation before the first domain-revealing token predicts the target-domain label with AUROC at least 0.65.",
+      "The association sign is positive in at least 90 percent of prompt-bootstrap resamples.",
+      "At least four of five highest-activating development examples are semantically consistent with the proposed feature interpretation."
+    ],
+    "tie_break": "highest prompt-bootstrap median AUROC, then lowest feature index",
+    "matched_random_features": {
+      "count": 5,
+      "seed": 20260831,
+      "matching": "development activation frequency +/-10 percent, mean positive activation +/-20 percent, decoder-vector norm +/-10 percent",
+      "selection": "hash-order among eligible non-primary features"
+    }
+  },
+  "intervention": {
+    "suppression": "Set the selected feature activation to zero and add only the corresponding decoder-coordinate delta to the original residual stream.",
+    "promotion_secondary": "Clamp the selected feature to its development-set 95th percentile when below that value.",
+    "window": "Final prompt position on the first cached-generation pass and the new-token position on every subsequent pass.",
+    "activation_noise": "Add a random residual perturbation with per-position L2 norm equal to the targeted SAE-coordinate delta.",
+    "invariants": [
+      "Never replace the residual with the full SAE reconstruction.",
+      "Cast SAE encode and delta calculation to float32, then cast the delta back to model dtype.",
+      "Verify zero-strength hook output equals no-hook output before generation.",
+      "Use eager batch-one generation without quantization or torch.compile."
+    ]
+  },
+  "conditions": [
+    "baseline",
+    "targeted_feature_suppression",
+    "matched_random_feature_suppression",
+    "l2_matched_activation_noise",
+    "diversity_instruction",
+    "higher_temperature",
+    "targeted_feature_promotion_secondary"
+  ],
+  "outcomes": {
+    "primary": "Prompt-clustered change in the selected target-domain rate: targeted suppression minus baseline.",
+    "primary_specificity": "Prompt-clustered difference between the targeted-suppression change and the mean change from five matched-random feature suppressions.",
+    "secondary": [
+      "per-prompt target-domain entropy",
+      "distinct target-domain count",
+      "source-to-target semantic distance",
+      "direction and dose response under feature promotion"
+    ],
+    "quality_guardrail": {
+      "measure": "Blind 1-5 structural-correspondence rubric, with condition labels and feature explanations hidden",
+      "noninferiority_margin": -0.25,
+      "unit": "rubric points relative to baseline"
+    }
+  },
+  "analysis": {
+    "resampling_unit": "source prompt",
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260831,
+    "interval": "two-sided percentile 95 percent",
+    "strong_support_rule": "Both primary upper confidence bounds are below zero and the structural-quality lower confidence bound is at least -0.25 rubric points.",
+    "no_adaptation": "After test_frozen.json is written, do not change the feature, controls, intervention, seeds, taxonomy, rubric, judge, exclusions, or analysis."
+  },
+  "required_before_test": [
+    "selected_domain",
+    "selected_feature_id",
+    "five_matched_random_feature_ids",
+    "intervention_strength",
+    "judge_model_or_rater_protocol",
+    "judge_prompt_sha256",
+    "prompt_manifest_sha256",
+    "generation_code_commit",
+    "environment_lock_sha256"
+  ]
+}
