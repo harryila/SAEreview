@@ -1,0 +1,50 @@
+{
+  "artifact": "latent_escape_real_gpu_smoke",
+  "artifact_sha256": {
+    "baseline_generations": "e35ac8488fba629d6ba5b2fcea8b1ae02f88b952acb706a3fe48b7692f3e7a15",
+    "prompt_activations": "afabb7b84d957a58820b3897cf4b1dc5282963beef767d8581a4323420ca8563",
+    "targeted_domain_labels": "2b8294bf9f648bc4435e7a2d28f983b320146e1600f26fcbc7103639a92e9356",
+    "targeted_generations": "727924f58d2e70617567906816778d231b8ea137493a33a92f3e5947f4b6b0d6"
+  },
+  "checks": {
+    "hook_call_count_exact": true,
+    "independent_bart_labels": true,
+    "nonzero_intervention_realized": true,
+    "paired_seeds": true,
+    "pinned_model_loaded": true,
+    "pinned_sae_loaded_and_hash_checked": true,
+    "test_split_touched": false,
+    "zero_strength_logits_exact": true
+  },
+  "created_at_utc": "2026-09-01T06:56:12.082685+00:00",
+  "development_prompt_ids": [
+    "le-002",
+    "le-003"
+  ],
+  "git_commit": "c28f65a36515cfc9859dff07dc0ef7b4bc255023",
+  "gpu": {
+    "cuda_version": "12.6",
+    "name": "NVIDIA A100-SXM4-40GB",
+    "torch_version": "2.7.1+cu126",
+    "total_memory_bytes": 42405855232
+  },
+  "independent_target_domains": [
+    "chemistry/materials",
+    "biology/ecology"
+  ],
+  "max_realized_delta_norm": 63.043479919433594,
+  "note": "This validates the real stack only and is not empirical evidence for the study hypothesis.",
+  "samples_per_prompt": 1,
+  "schema_valid_counts": {
+    "baseline": 2,
+    "targeted": 2
+  },
+  "schema_version": 1,
+  "smoke_only_feature_selection": {
+    "activation": 63.05467987060547,
+    "active_prompt_id": "le-003",
+    "feature_id": 8161,
+    "rule": "global maximum prompt activation; plumbing check only"
+  },
+  "status": "pass"
+}

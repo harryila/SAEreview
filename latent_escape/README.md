@@ -1,7 +1,7 @@
 # Latent Escape: Causal Control of Analogy Target-Domain Selection with Sparse Autoencoder Features
 
-**Status: development pipeline implemented; no model generation or empirical
-result has been run or claimed.**
+**Status: the real-stack two-prompt GPU smoke test passed; the development
+experiment has not been run and no empirical result is claimed.**
 
 Research question: do sparse, interpretable domain-attractor features causally
 contribute to Gemma 2 repeatedly choosing familiar analogy domains, and can
@@ -49,6 +49,21 @@ Choices learned on development—feature ID, matched controls, strength, exact
 judge, and prompt hash—must be written to `test_frozen.json` before any test
 generation. [`test_config.template.json`](test_config.template.json) lists the
 required fields.
+
+## Real GPU smoke test
+
+The isolated two-prompt development smoke passed on an NVIDIA A100-SXM4-40GB at
+commit `c28f65a`. It loaded the exact pinned Gemma and Gemma Scope revisions,
+hash-checked the SAE, reproduced identical logits with a zero-strength hook,
+captured real prompt activations, applied a nonzero full-strength decoder-direction
+ablation with paired seeds, matched hook calls to generated-token counts, produced
+schema-valid JSON in both arms, and independently labeled the targeted outputs
+with the pinned BART classifier. The untouched test split was not accessed.
+
+See [`gpu_smoke_report.json`](gpu_smoke_report.json) for artifact hashes and exact
+runtime details. Feature `8161` was chosen only because it had the largest positive
+activation in these two prompts; it is a plumbing check and is not the development
+feature-discovery result or evidence for the hypothesis.
 
 ## Prepare and verify prompts
 
