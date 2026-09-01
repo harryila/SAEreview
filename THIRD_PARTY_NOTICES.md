@@ -28,3 +28,12 @@ The Latent Escape protocol uses `google/gemma-2-9b-it`, which is gated and subje
 to the Gemma Terms of Use, and `google/gemma-scope-9b-it-res`, whose Hugging Face
 model card declares CC BY 4.0. Users must accept and follow the applicable upstream
 terms. This repository does not redistribute either set of weights.
+
+## Domain labeling and semantic distance
+
+The independent domain-label pipeline downloads `facebook/bart-large-mnli` at
+revision `d7645e127eaf1aefc7862fd59a17a5aa8558b8ce` under its upstream MIT
+license. The secondary semantic-distance metric downloads
+`sentence-transformers/all-MiniLM-L6-v2` at revision
+`1110a243fdf4706b3f48f1d95db1a4f5529b4d41` under its upstream Apache-2.0
+license. Neither model is redistributed here.

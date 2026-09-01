@@ -5,10 +5,14 @@
   "selected_feature_id": null,
   "five_matched_random_feature_ids": [],
   "intervention_strength": "suppression_to_zero",
-  "judge_model_or_rater_protocol": null,
-  "judge_prompt_sha256": null,
+  "judge_model_or_rater_protocol": "blinded-human-structural-correspondence-v1",
+  "judge_prompt_sha256": "73e59c355f9cd6cf2cb62cd8f22a71983ac73d02f58746aa4235fce33b7f7e61",
+  "domain_classifier_revision": "d7645e127eaf1aefc7862fd59a17a5aa8558b8ce",
   "prompt_manifest_sha256": null,
+  "eligible_activation_threshold": null,
+  "power_report_sha256": "f28e746e8ebc5764d2341f844f017aa85d79cfd1f6240ea102241cb617391f11",
+  "development_gate_report_path": null,
+  "development_gate_report_sha256": null,
   "generation_code_commit": null,
-  "environment_lock_sha256": null,
-  "test_generation_started": false
+  "environment_lock_sha256": null
 }

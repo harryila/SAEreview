@@ -1,0 +1,12 @@
+{
+  "feature_id": null,
+  "domain": null,
+  "condition_hidden": true,
+  "items": [
+    {"prompt_id": null, "semantically_consistent": null, "note": null},
+    {"prompt_id": null, "semantically_consistent": null, "note": null},
+    {"prompt_id": null, "semantically_consistent": null, "note": null},
+    {"prompt_id": null, "semantically_consistent": null, "note": null},
+    {"prompt_id": null, "semantically_consistent": null, "note": null}
+  ]
+}

@@ -55,3 +55,31 @@ upstream work used by the relevant experiment.
   howpublished = {\url{https://github.com/decoderesearch/SAELens}}
 }
 ```
+
+## Analogy-domain homogeneity
+
+```bibtex
+@misc{shen2026diversity,
+  title = {On the Diversity of Analogy Making in Large Language Models},
+  author = {Shen, Yuanhao and de Sousa, Daniel Xavier and Barcelos, Caio César Sifuentes and Guo, Hongyu and Zhu, Xiaodan},
+  year = {2026},
+  eprint = {2608.03233},
+  archivePrefix = {arXiv},
+  doi = {10.48550/arXiv.2608.03233},
+  url = {https://arxiv.org/abs/2608.03233}
+}
+```
+
+## Sparse activation steering
+
+```bibtex
+@misc{bayat2025steering,
+  title = {Steering Large Language Model Activations in Sparse Spaces},
+  author = {Bayat, Reza and Rahimi-Kalahroudi, Ali and Pezeshki, Mohammad and Chandar, Sarath and Vincent, Pascal},
+  year = {2025},
+  eprint = {2503.00177},
+  archivePrefix = {arXiv},
+  doi = {10.48550/arXiv.2503.00177},
+  url = {https://arxiv.org/abs/2503.00177}
+}
+```

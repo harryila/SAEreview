@@ -1,8 +1,10 @@
 {
   "schema_version": 1,
   "protocol_id": "latent-escape-mvp-v1",
+  "protocol_revision": 2,
   "created_at": "2026-08-31",
   "status": "development_not_run",
+  "amendment_note": "Revision 2 was frozen before any development generation. It adds prompt-level feature discovery, maximum-statistic permutation correction, pinned independent domain labels and audits, quantitative pre-domain evidence, a larger untouched test, a power check, schema and quality guardrails, and a development intervention gate cryptographically bound to test access.",
   "research_question": "Does suppressing an SAE feature selected for a common analogy target domain causally reduce selection of that domain without materially reducing structural quality?",
   "claim_boundary": {
     "positive_claim": "A development-selected, interpretable SAE feature causally influences analogy-domain selection in the pinned model and prompt population.",
@@ -19,6 +21,7 @@
       "revision": "11c9b309abf73637e4b6f9a3fa1e92e615547819",
       "dtype": "bfloat16",
       "quantization": "none",
+      "execution": "single CUDA device cuda:0; automatic CPU/disk offload forbidden",
       "chat_template": "official Gemma instruction template; no system role"
     },
     "sae": {
@@ -32,17 +35,25 @@
       "site": "post-layer residual output",
       "width": 16384,
       "calculation_dtype": "float32"
+    },
+    "semantic_distance_model": {
+      "repo_id": "sentence-transformers/all-MiniLM-L6-v2",
+      "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+      "metric": "one minus cosine similarity of normalized embeddings",
+      "source_extraction": "source_name plus source_description",
+      "target_extraction": "target_system plus mappings[].target_role; full generated text only when structured extraction fails",
+      "role": "secondary outcome only"
     }
   },
   "stimuli": {
     "source": "SCAR system descriptions at the repository-pinned commit; source side only",
     "source_sha256": "12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369",
     "selection_seed": "latent-escape-prompts-v1",
-    "prompt_count": 160,
+    "prompt_count": 200,
     "development_count": 80,
-    "test_count": 80,
+    "test_count": 120,
     "grouping": "At most one side of any SCAR pair is selected, so no known pair relation crosses development and test.",
-    "expected_manifest_sha256": "b110039e3be33f81856d0a790cbcefbec0222a54f472a3695a98e3d26d19cc19",
+    "expected_manifest_sha256": "18100b8a28777539737e5a33b1c00bbccd5da35dd3325828399a5d5e426d5b98",
     "leakage_rule": "Do not pass or score against the paired SCAR target, mappings, or explanations. Do not inspect test generations until test_frozen.json exists."
   },
   "generation": {
@@ -77,25 +88,53 @@
     "everyday/household",
     "other"
   ],
+  "domain_labeling": {
+    "primary_source": "independent blinded zero-shot classifier",
+    "classifier_repo_id": "facebook/bart-large-mnli",
+    "classifier_revision": "d7645e127eaf1aefc7862fd59a17a5aa8558b8ce",
+    "hypothesis_template": "This analogy's target domain is {}.",
+    "blinding": "Remove the generated target_domain field and hide prompt split, condition, seed, feature ID, and intervention metadata from the classifier and manual raters.",
+    "generated_target_domain_policy": "Never use the model's self-reported target_domain as a primary or fallback label.",
+    "manual_audit": "Deterministically stratify approximately 10 percent of outputs across predicted domains for independent blinded double-checking; report agreement and use adjudicated labels only for audited records.",
+    "audit_gate": "Pause before feature discovery if audited exact agreement is below 80 percent or any taxonomy class with at least five audited examples has agreement below 60 percent."
+  },
   "feature_discovery": {
     "selection_count": 1,
     "development_only": true,
+    "observation_unit": "One row per development prompt. Aggregate eight independently labeled baseline outputs into a 19-element target-domain frequency vector; use the prompt's pre-generation last-token SAE activation vector exactly once.",
+    "cross_validation": "Five folds assigned at the source-prompt level. Samples from one prompt never cross folds.",
+    "multiple_testing": {
+      "method": "prompt-level permutation maximum-statistic test across every eligible SAE feature and eligible domain",
+      "permutations": 1000,
+      "seed": 20260831,
+      "familywise_alpha": 0.05,
+      "permutation_unit": "shuffle complete prompt-level domain-frequency rows; never shuffle individual generations",
+      "selection_statistic": "positive Spearman association between pre-generation feature activation and prompt-level target-domain frequency"
+    },
     "criteria": [
       "The target domain accounts for at least 10 percent of development outputs.",
-      "Feature activation before the first domain-revealing token predicts the target-domain label with AUROC at least 0.65.",
+      "The feature fires on at least 10 percent and at most 90 percent of development prompts.",
+      "The prompt-level maximum-statistic familywise-adjusted p-value is at most 0.05.",
+      "Five-fold prompt-level out-of-fold predictions have positive Spearman association with target-domain frequency.",
       "The association sign is positive in at least 90 percent of prompt-bootstrap resamples.",
+      "The feature is active before the first domain-revealing output token, not only afterward.",
       "At least four of five highest-activating development examples are semantically consistent with the proposed feature interpretation."
     ],
-    "tie_break": "highest prompt-bootstrap median AUROC, then lowest feature index",
+    "tie_break": "highest observed positive Spearman association (the maximum statistic); exact ties use the lowest feature index, then frozen taxonomy order. The selected pair must then pass the corrected-p, cross-validation, bootstrap, timing, and interpretation gates.",
     "matched_random_features": {
       "count": 5,
       "seed": 20260831,
       "matching": "development activation frequency +/-10 percent, mean positive activation +/-20 percent, decoder-vector norm +/-10 percent",
       "selection": "hash-order among eligible non-primary features"
+    },
+    "pre_domain_evidence": {
+      "minimum_boundary_resolution": 0.9,
+      "minimum_active_fraction_of_resolved": 0.1,
+      "rule": "The selected feature must be active before the first target_domain value token in at least 10 percent of resolved baseline generations, and the boundary must resolve for at least 90 percent of development generations."
     }
   },
   "intervention": {
-    "suppression": "Set the selected feature activation to zero and add only the corresponding decoder-coordinate delta to the original residual stream.",
+    "suppression": "Operational decoder-direction ablation: subtract the selected activation times its decoder vector from the original residual stream. This does not assert that re-encoding yields an exactly zero selected latent or unchanged other latents.",
     "promotion_secondary": "Clamp the selected feature to its development-set 95th percentile when below that value.",
     "window": "Final prompt position on the first cached-generation pass and the new-token position on every subsequent pass.",
     "activation_noise": "Add a random residual perturbation with per-position L2 norm equal to the targeted SAE-coordinate delta.",
@@ -126,15 +165,45 @@
     ],
     "quality_guardrail": {
       "measure": "Blind 1-5 structural-correspondence rubric, with condition labels and feature explanations hidden",
+      "judge_protocol_id": "blinded-human-structural-correspondence-v1",
+      "rubric": "Rate structural correspondence from 1 (surface-only or broken) to 5 (faithful causal roles, relations, and boundary conditions).",
+      "rubric_sha256": "73e59c355f9cd6cf2cb62cd8f22a71983ac73d02f58746aa4235fce33b7f7e61",
+      "ratings_per_generation": 1,
       "noninferiority_margin": -0.25,
       "unit": "rubric points relative to baseline"
-    }
+    },
+    "claim_policy": "The primary endpoint supports only causal control of target-domain selection. Claim reduced homogeneity only if prompt-level domain entropy and distinct-domain count both improve; claim improved serendipity only if those improve while structural quality remains non-inferior."
+  },
+  "power": {
+    "required_before_development_generation": true,
+    "test_prompts": 120,
+    "paired_samples_per_prompt": 8,
+    "target_power": 0.8,
+    "alpha": 0.05,
+    "power_report_sha256": "f28e746e8ebc5764d2341f844f017aa85d79cfd1f6240ea102241cb617391f11",
+    "report": "Record simulation assumptions and minimum detectable full-population domain-rate change before generation. Do not shrink the full-population analysis after seeing results.",
+    "eligible_prompt_analysis": "Secondary analysis on prompts whose pre-treatment selected-feature activation is at or above a threshold frozen from development. Report the full-population effect first.",
+    "eligible_threshold_rule": "Median positive selected-feature activation on development prompts; record the numeric value in test_frozen.json."
+  },
+  "development_intervention_gate": {
+    "test_access": "forbidden",
+    "prompt_count": 24,
+    "prompt_selection": "24 development prompts selected by hash within above-threshold and below-threshold strata: take up to 12 above the development-frozen threshold, then fill the remainder from below threshold",
+    "paired_samples_per_prompt": 4,
+    "suppression_doses": [0.25, 0.5, 1.0],
+    "proceed_only_if": [
+      "Full suppression changes the intended-domain rate more than the mean of the five matched-random feature controls.",
+      "The intended-domain response is monotone in the correct direction across at least two adjacent dose steps.",
+      "Mean blinded structural quality remains within 0.25 rubric points of baseline.",
+      "Required-schema-valid JSON rate is no more than 2 percentage points below baseline."
+    ]
   },
   "analysis": {
     "resampling_unit": "source prompt",
     "bootstrap_resamples": 10000,
     "bootstrap_seed": 20260831,
     "interval": "two-sided percentile 95 percent",
+    "population_order": "Report the full 120-prompt test population first, then the development-thresholded eligible-prompt analysis as secondary.",
     "strong_support_rule": "Both primary upper confidence bounds are below zero and the structural-quality lower confidence bound is at least -0.25 rubric points.",
     "no_adaptation": "After test_frozen.json is written, do not change the feature, controls, intervention, seeds, taxonomy, rubric, judge, exclusions, or analysis."
   },
@@ -145,7 +214,12 @@
     "intervention_strength",
     "judge_model_or_rater_protocol",
     "judge_prompt_sha256",
+    "domain_classifier_revision",
     "prompt_manifest_sha256",
+    "eligible_activation_threshold",
+    "power_report_sha256",
+    "development_gate_report_path",
+    "development_gate_report_sha256",
     "generation_code_commit",
     "environment_lock_sha256"
   ]

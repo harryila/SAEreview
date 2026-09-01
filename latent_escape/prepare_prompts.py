@@ -19,7 +19,7 @@ OUTPUT = ROOT / "latent_escape" / "artifacts" / "prompt_manifest.jsonl"
 METADATA = ROOT / "latent_escape" / "artifacts" / "prompt_manifest.meta.json"
 DATA_SHA256 = "12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369"
 SELECTION_SEED = "latent-escape-prompts-v1"
-PROMPT_COUNT = 160
+PROMPT_COUNT = 200
 DEVELOPMENT_COUNT = 80
 
 
@@ -134,14 +134,20 @@ def build_records(selected: list[dict[str, str]]) -> list[dict[str, Any]]:
     for source in selected:
         by_domain[source["source_domain"]].append(source)
     development_per_domain = {
-        domain: len(bucket) // 2 for domain, bucket in by_domain.items()
+        domain: (len(bucket) * DEVELOPMENT_COUNT) // PROMPT_COUNT
+        for domain, bucket in by_domain.items()
     }
     remaining = DEVELOPMENT_COUNT - sum(development_per_domain.values())
-    odd_domains = sorted(
-        (domain for domain, bucket in by_domain.items() if len(bucket) % 2),
-        key=lambda domain: stable_score("split-domain", domain),
+    allocation_order = sorted(
+        by_domain,
+        key=lambda domain: (
+            -(
+                (len(by_domain[domain]) * DEVELOPMENT_COUNT) % PROMPT_COUNT
+            ),
+            stable_score("split-domain", domain),
+        ),
     )
-    for domain in odd_domains[:remaining]:
+    for domain in allocation_order[:remaining]:
         development_per_domain[domain] += 1
 
     development_ids: set[str] = set()

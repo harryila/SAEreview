@@ -1,6 +1,7 @@
-# Latent Escape
+# Latent Escape: Causal Control of Analogy Target-Domain Selection with Sparse Autoencoder Features
 
-**Status: protocol prepared; no generation result has been run or claimed.**
+**Status: development pipeline implemented; no model generation or empirical
+result has been run or claimed.**
 
 Research question: do sparse, interpretable domain-attractor features causally
 contribute to Gemma 2 repeatedly choosing familiar analogy domains, and can
@@ -14,11 +15,12 @@ not reused as evidence for this hypothesis.
 
 - Model: `google/gemma-2-9b-it` at revision
   `11c9b309abf73637e4b6f9a3fa1e92e615547819`, BF16, no quantization.
+  The confirmatory runtime is one CUDA device (`cuda:0`) with no offload.
 - SAE: `google/gemma-scope-9b-it-res` at revision
   `e86af97a5b6fbbccca28ab654f2fda1b0768f770`, layer 20, width 16k,
   `average_l0_91`.
-- Stimuli: 160 source systems, deterministically balanced across SCAR domains;
-  80 development and 80 untouched test, with at most one side of any SCAR pair.
+- Stimuli: 200 source systems, deterministically balanced across SCAR domains;
+  80 development and 120 untouched test, with at most one side of any SCAR pair.
   Known SCAR target systems and mappings are never included in the generation
   manifest or evaluation.
 - Feature discovery: use development generations to freeze exactly one primary
@@ -32,6 +34,14 @@ not reused as evidence for this hypothesis.
   rate under targeted suppression, versus baseline and matched-random suppression.
 - Guardrail: blinded structural-quality non-inferiority with a 0.25-point margin
   on a five-point rubric.
+- Secondary distance metric: normalized cosine distance from source text to the
+  generated target system/roles using `sentence-transformers/all-MiniLM-L6-v2`
+  at revision `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`.
+
+“Suppression” is operationally a decoder-direction ablation: the hook subtracts
+the selected activation times that feature's decoder vector from the untouched
+residual stream. It does not assume that re-encoding the edited residual makes
+that latent exactly zero or leaves every other encoder coordinate unchanged.
 
 The complete machine-readable specification is [`protocol.json`](protocol.json).
 Choices learned on development—feature ID, matched controls, strength, exact
@@ -52,6 +62,59 @@ downloading anything:
 ```bash
 make latent-protocol
 ```
+
+## Run the development pipeline
+
+An offline two-prompt contract check downloads no model weights:
+
+```bash
+make latent-dry-run
+```
+
+On a single CUDA GPU, after setting `HF_TOKEN` for an account with Gemma access,
+run only the 80-prompt development baseline:
+
+```bash
+make latent-dev-baseline
+```
+
+That command generates eight paired-seed outputs per prompt, captures exactly
+one pre-generation SAE vector per prompt (plus nested pre-domain diagnostics),
+labels targets with the pinned independent classifier, and writes a blinded 10%
+manual-audit queue. Fill `manual_domain_label` in the emitted
+`development_baseline.audit.jsonl`, then rerun the labeler with
+`--manual-overrides` before invoking `discover_feature.py`. Discovery blocks
+unless the audit gate, prompt-level cross-validation, 1,000-permutation global
+maximum-statistic correction, prompt bootstrap, matched controls, and the 4/5
+semantic review all pass. The discovery artifact supplies the frozen activation
+threshold and 24 hash-selected gate prompt IDs; use
+`semantic_review.template.json` for the required review record and pass the
+captured `development_baseline_prompt.pre_domain.jsonl` through
+`--pre-domain-activations` for the quantitative timing gate.
+
+The remaining CLIs are intentionally separate at the manual checkpoints:
+
+- `generate.py` runs baseline, dose, targeted, matched-random, activation-noise,
+  diversity-prompt, temperature, and promotion conditions with paired seeds.
+- `evaluate.py prepare-quality` exports a condition-blinded 1–5 quality queue.
+- `evaluate.py distance` computes the pinned secondary semantic-distance metric.
+- `evaluate.py run` reports clustered bootstrap results for the full population
+  first and the development-frozen eligible-prompt population second.
+
+For the intervention gate, pass the completed discovery artifact to every
+generation as `--development-plan`; this automatically selects the exact 24
+prompts, four samples, feature, and five controls. Generate suppression doses
+`0.25`, `0.5`, and `1.0`, then evaluate with the same
+`--development-plan`. The evaluator refuses any prompt/sample mismatch and emits
+`development_intervention_gate.status=pass|stop`.
+
+Copy `test_config.template.json` to ignored `test_frozen.json` only after the
+development gate passes. Test commands require that completed file, the exact
+clean code commit and lockfile hashes, every test prompt, and an explicit
+`--confirm-test`. The frozen config must point to the passing gate report and
+its hash. An ignored append-only arm ledger prevents rerunning a confirmatory
+arm under a second output path, and test outputs cannot be overwritten through
+the CLI.
 
 SCAR is used only as a quick source-mechanism stimulus bank. It is not a fresh
 benchmark and may have appeared in model pretraining; a positive MVP should later

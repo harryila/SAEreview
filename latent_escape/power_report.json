@@ -1,0 +1,20 @@
+{
+  "assumptions": {
+    "cross_condition_prompt_correlation": 0.5,
+    "selected_domain_rate": 0.2,
+    "within_prompt_output_icc": 0.2
+  },
+  "caveat": "This is a design sensitivity calculation, not post-hoc observed power. The confirmatory interval still resamples prompts nonparametrically.",
+  "design": {
+    "paired_samples_per_prompt_per_condition": 8,
+    "target_power": 0.8,
+    "test_prompts": 120,
+    "two_sided_alpha": 0.05
+  },
+  "interpretation": "Under the stated clustering and pairing assumptions, the full test is designed for about a 5.6-point effect at a 20% baseline rate; the variance-maximizing 50% case is 7.0 points.",
+  "method": "Normal approximation for a paired mean of prompt-level domain-rate differences with beta-binomial-style design effect",
+  "minimum_detectable_absolute_rate_change": 0.05603170436225937,
+  "protocol_id": "latent-escape-mvp-v1",
+  "schema_version": 1,
+  "worst_case_rate_0_5_mde": 0.0700396304528242
+}

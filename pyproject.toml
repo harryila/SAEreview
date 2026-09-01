@@ -1,19 +1,23 @@
 [project]
 name = "saereview"
-version = "0.2.0"
-description = "SAE analogy retrieval pilot and causal-generation protocol"
+version = "0.3.0"
+description = "SAE analogy retrieval pilot and causal analogy-generation pipeline"
 requires-python = ">=3.10,<3.11"
 dependencies = [
+  "accelerate==1.14.0",
+  "huggingface-hub==0.36.2",
   "ipykernel==7.3.0",
   "matplotlib==3.10.5",
   "nbclient==0.11.0",
   "nbformat==5.11.1",
   "numpy==2.0.2",
   "openai==1.98.0",
+  "pytest==8.4.1",
   "scikit-learn==1.7.1",
   "scipy==1.15.3",
   "sentence-transformers==5.0.0",
   "torch==2.7.1",
+  "transformers==4.57.6",
 ]
 
 [tool.uv]

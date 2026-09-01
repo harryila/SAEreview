@@ -72,7 +72,7 @@ overused analogy domain be suppressed to change the model's target-domain
 distribution without materially reducing structural quality?
 
 The in-repo MVP fixes Gemma 2 9B IT, the layer-20 16k Gemma Scope residual SAE,
-160 source prompts split 80 development / 80 untouched test, matched random
+200 source prompts split 80 development / 120 untouched test, matched random
 features, activation noise, diversity prompting, and temperature controls. See
 the [protocol and current run status](latent_escape/README.md).
 
