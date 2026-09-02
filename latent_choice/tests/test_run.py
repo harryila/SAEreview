@@ -20,6 +20,9 @@ from latent_choice.run import (
 )
 
 
+ROOT = DEFAULT_PROTOCOL.parents[1]
+
+
 class _FakeTokenizer:
     def __call__(self, text: str, **kwargs: object) -> dict[str, torch.Tensor]:
         del text, kwargs
@@ -137,3 +140,28 @@ def test_committed_code_token_manifest_loads_and_test_cli_is_blocked() -> None:
     assert len(set(token_ids.values())) == 18
     with pytest.raises(SystemExit, match="test access is disabled"):
         main(["baseline", "--split", "test"])
+
+
+def test_committed_development_result_is_the_frozen_compliance_stop() -> None:
+    report_path = ROOT / "latent_choice" / "development_baseline_report.json"
+    rows_path = ROOT / "latent_choice" / "results" / "development_choice_baseline.jsonl"
+    verification_path = (
+        ROOT / "latent_choice" / "development_baseline_verification.json"
+    )
+    report = json.loads(report_path.read_text())
+    verification = json.loads(verification_path.read_text())
+    rows = [json.loads(line) for line in rows_path.read_text().splitlines()]
+    assert hashlib.sha256(report_path.read_bytes()).hexdigest() == verification[
+        "report_sha256"
+    ]
+    assert hashlib.sha256(rows_path.read_bytes()).hexdigest() == verification[
+        "row_records_sha256"
+    ]
+    assert len(rows) == 80
+    assert sum(row["full_vocab_candidate_mass"] >= 0.5 for row in rows) == 13
+    assert report["candidate_mass_compliance"]["status"] == "stop"
+    assert report["candidate_mass_compliance"]["observed_prompt_fraction"] == 0.1625
+    assert report["feature_discovery_allowed"] is False
+    assert report["test_split_generated"] is False
+    assert verification["decision"]["feature_domain_association_computed"] is False
+    assert verification["decision"]["study_intervention_performed"] is False

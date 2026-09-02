@@ -1,8 +1,7 @@
 # SAEreview
 
-This repository contains two deliberately separated completed studies of sparse
-autoencoders (SAEs) and cross-domain analogy, plus a successor study under
-development:
+This repository contains three deliberately separated studies of sparse
+autoencoders (SAEs) and cross-domain analogy:
 
 1. **Retrieval pilot — frozen.** The completed SCAR study is preserved at
    [`v0.1-retrieval-study`](https://github.com/harryila/SAEreview/releases/tag/v0.1-retrieval-study).
@@ -11,11 +10,10 @@ development:
    [`v0.2-measurement-gate-failure`](https://github.com/harryila/SAEreview/releases/tag/v0.2-measurement-gate-failure).
    BART and the accepted AI rater agreed on only 18/64 audit items, so the study
    stopped before feature discovery or any hypothesis-testing intervention.
-3. **Latent Choice — successor under development.** The frozen pre-development
-   protocol and executable choice endpoint live in
-   [`latent_choice/`](latent_choice/README.md). This study makes the model's
-   target-domain choice an explicit, directly measured action rather than
-   inferring it afterward with BART.
+3. **Latent Choice — frozen at its choice-compliance gate.** Its real 80-prompt
+   development baseline completed, but only 13/80 prompts met the frozen
+   candidate-code probability-mass floor. It therefore stopped before feature
+   discovery or intervention; see [`latent_choice/`](latent_choice/README.md).
 
 The retrieval result motivates the pivot but is **not** evidence for the new
 generation hypothesis.
@@ -89,10 +87,12 @@ no hypothesis-testing intervention was run, and the confirmatory split remains
 untouched. A separate two-prompt nonzero intervention was only a plumbing smoke
 test. See the [frozen protocol and audit report](latent_escape/README.md).
 
-The successor Latent Choice protocol will use an explicit domain-choice endpoint
-and reserve independent human ratings for declared-domain consistency and analogy
-quality. It is a distinct study; the failed audit will not be repaired or reused
-for feature discovery.
+The distinct Latent Choice successor then tested an explicit domain-choice
+measurement, without reusing the failed audit. Its pre-feature compliance gate
+also stopped the study: the exact letter-code action did not receive enough
+unmasked next-token probability on enough development prompts. This is a
+measurement result, not a test of the SAE causal hypothesis; no feature-domain
+association or study intervention was run.
 
 ## License and attribution
 

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "artifact": "latent_choice_development_baseline_independent_verification",
+  "created_at_utc": "2026-09-02T19:32:20Z",
+  "source_git_commit": "44ed128b06e56050102ee14e247c495a9e65c263",
+  "protocol_sha256": "06023e7551795726753787e1531fade5f48fafbfb1ddf278c8760fb5dfa8924f",
+  "report_sha256": "3aa34a34e51bf87d5a79651dc98f8ea4d2fd799e05b1c7746942c8cfa6d590b5",
+  "row_records_sha256": "cf0743de11fd90104b0dfc47045e6891a8a0abf68bb1e0ec7304ad64412318ff",
+  "activation_matrix_sha256": "647cd32bc6b0055f865c091f986a20ed60992a8390ccff6d22e5d22a68afee9f",
+  "activation_matrix_public": false,
+  "checks": {
+    "row_count": 80,
+    "unique_prompt_ids": 80,
+    "all_rows_development": true,
+    "all_rows_real_model_evidentiary": true,
+    "all_rows_one_decision_forward": true,
+    "all_rows_one_capture_hook_call": true,
+    "all_rows_zero_intervention_hook_calls": true,
+    "all_rows_feature_id_null_and_strength_zero": true,
+    "all_domain_probability_vectors_sum_to_one": true,
+    "all_domain_code_mappings_are_bijections": true,
+    "activation_shape": [80, 16384],
+    "activation_rows_match_prompt_order": true,
+    "activation_row_hashes_match": "80/80",
+    "activation_values_finite_and_nonnegative": true,
+    "activation_nonzero_value_count": 5725,
+    "test_split_generated": false
+  },
+  "candidate_mass": {
+    "floor": 0.5,
+    "required_prompt_fraction": 0.9,
+    "passing_prompt_count": 13,
+    "passing_prompt_fraction": 0.1625,
+    "minimum": 0.13282129689341737,
+    "quartile_25": 0.26142505214330714,
+    "median": 0.3413044478874989,
+    "quartile_75": 0.44043451073777834,
+    "maximum": 0.6987832515358753
+  },
+  "decision": {
+    "status": "stop",
+    "feature_discovery_allowed": false,
+    "feature_domain_association_computed": false,
+    "study_intervention_performed": false,
+    "confirmatory_test_accessed": false
+  }
+}

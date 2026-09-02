@@ -19,6 +19,12 @@ audit artifacts, but not the 64 generated analogy texts. Those texts remain
 local pending explicit upstream redistribution permission or other appropriate
 clearance.
 
+The public Latent Choice development records contain only prompt IDs, hashes,
+code mappings, and numeric model measurements; they contain no SCAR source text,
+system names, or generated analogies. The corresponding activation matrix is
+hash-bound but not published. The underlying SCAR stimulus text remains an
+external runtime download under the notice above.
+
 ## Scientific embedding SAEs
 
 The cs.LG and astro.PH checkpoints are downloaded from the authors' public

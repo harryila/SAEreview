@@ -1,10 +1,11 @@
 # Latent Choice v1
 
-**Status: protocol and real-tokenizer contract frozen before development. No
-evidentiary real-model Latent Choice logits, activations, feature associations,
-interventions, human ratings, or test outputs exist yet. Synthetic dry-run
-records are explicitly non-evidentiary. The 120-prompt test split remains
-untouched.**
+**Status: the real 80-prompt development choice baseline is complete and the
+frozen candidate-mass compliance gate failed. Only 13/80 prompts (16.25%) met
+the required 0.5 code-set probability floor, versus the frozen 90% requirement.
+The study therefore stops before feature discovery. No feature association,
+study intervention, human rating, or test output exists; the 120-prompt test
+split remains untouched.**
 
 Latent Choice is a distinct successor to the stopped Latent Escape study. It
 asks whether a sparse-autoencoder feature causally changes Gemma 2's explicit
@@ -42,6 +43,41 @@ Before feature discovery, at least 90% of all 80 development prompts must assign
 at least 50% of their unmasked next-token probability mass to the 18 code tokens.
 All rows remain reported; low-mass prompts are never removed. If this compliance
 gate fails, the study stops without changing the prefix, codes, or threshold.
+
+## Development baseline result
+
+The immutable real-model baseline ran at commit `44ed128b` on one NVIDIA
+A100-SXM4-40GB. It loaded the pinned Gemma 2 and Gemma Scope revisions, validated
+all 80 exact code-token boundaries before the first forward, performed one clean
+choice forward per development prompt, and captured an `80 x 16,384` untreated
+SAE activation matrix. The worktree was clean and the test split was not
+generated.
+
+The compliance result was:
+
+- 13/80 prompts at or above 0.5 candidate-code mass: **16.25%**;
+- required: 72/80 prompts, or **90%**;
+- median candidate-code mass: **0.3413**;
+- minimum / maximum: **0.1328 / 0.6988**;
+- gate status: **stop**.
+
+Under the frozen protocol, feature discovery is now forbidden. No activation-
+domain association was computed, no feature was selected, no intervention was
+performed, and the threshold or prompt prefix will not be revised inside v1.
+The result means this exact forced letter-code endpoint did not satisfy its
+predeclared compliance criterion; it does not test or disprove the SAE causal
+hypothesis.
+
+Evidence:
+
+- [`development_baseline_report.json`](development_baseline_report.json)
+- [`results/development_choice_baseline.jsonl`](results/development_choice_baseline.jsonl)
+  (80 text-free row-level logit/probability records)
+- [`development_baseline_verification.json`](development_baseline_verification.json)
+  (independent row/activation/hash checks)
+
+The source-text-free activation matrix remains outside the public repository;
+its SHA-256 is bound in the report and verification artifact.
 
 The primary endpoint is the prompt-mean change in the selected domain's `q`
 under full targeted suppression versus baseline. Specificity contrasts compare
@@ -101,8 +137,8 @@ content:
 uv run python -m latent_choice.validate_protocol --show-summary
 ```
 
-Before the development baseline, verify the pinned Gemma tokenizer contract.
-This requires access to the pinned tokenizer and writes no experiment data:
+To reproduce the preflight, verify the pinned Gemma tokenizer contract. This
+requires access to the pinned tokenizer and writes no experiment data:
 
 ```bash
 HF_TOKEN=... uv run python -m latent_choice.validate_protocol --check-tokenizer --show-summary
@@ -121,7 +157,8 @@ Run the model-free two-prompt contract check with:
 make latent-choice-dry-run
 ```
 
-Then run the immutable 80-prompt development baseline on one CUDA GPU:
+On a fresh clone with no existing output, reproduce the immutable 80-prompt
+development baseline on one CUDA GPU with:
 
 ```bash
 HF_TOKEN=... uv run python -m latent_choice.run baseline
