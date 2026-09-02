@@ -1,11 +1,13 @@
 # Latent Escape: Causal Control of Analogy Target-Domain Selection with Sparse Autoencoder Features
 
 **Status: the 640-output development baseline, prompt-activation capture, and
-pinned independent domain labeling are complete. The blinded manual label audit
-is pending; no feature has been selected, no causal intervention or confirmatory
-test has been run, and no empirical causal result is claimed. Protocol Amendment
-4 was adopted after reviewing only the aggregate baseline report and before the
-manual audit or feature search.**
+Amendment 4 blinded label audit are complete. The frozen audit gate failed:
+exact agreement was 18/64 (28.125%), including 0/38 for the pinned classifier's
+`other` class, in the accepted neutral-path rating attempt. The protocol therefore
+stops before feature discovery. No feature has been selected, no causal
+intervention or confirmatory test has been run, and no empirical causal result is
+claimed. Protocol Amendment 4 was adopted after reviewing only the aggregate
+baseline report and before the audit or feature search.**
 
 Research question: do sparse, interpretable domain-attractor features causally
 contribute to Gemma 2 repeatedly choosing familiar analogy domains, and can
@@ -95,8 +97,9 @@ byte-identical.
 
 See [`development_baseline_report.json`](development_baseline_report.json) for
 the frozen commit, artifact hashes, aggregate label counts, and audit status.
-Those labels remain unvalidated until the blinded audit is completed, so this
-baseline is not yet eligible for feature discovery.
+That report remains frozen at its pre-audit state. The completed audit and stop
+result are recorded separately below; these labels are not eligible for feature
+discovery.
 
 Amendment 4 leaves [`protocol.json`](protocol.json) byte-for-byte unchanged and
 records its predecessor hash explicitly. At adoption time, the full unaudited
@@ -110,6 +113,48 @@ selection. It remains in labeling coverage, audit summaries, domain rates,
 entropy, and distinct-domain counts. The pre-existing 10% selection threshold is
 unchanged. This is a post-baseline, outcome-informed development amendment, not
 a claim that the exclusion was preregistered.
+
+This is a **transparent post-baseline, pre-analysis amendment**. Here,
+“pre-analysis” means before the manual audit, prompt-level label/activation
+associations, or feature analysis; the aggregate baseline report and counts had
+already been reviewed. It is not a fully preregistered study.
+
+## Amendment 4 audit result
+
+A first AI-rating attempt was excluded after a final provenance review found that
+its absolute input path contained `development_baseline`, disclosing split and
+condition despite row-level field blinding. Its outcome was known before
+remediation but was not used for the authoritative gate. A fresh rater was
+committed in advance as authoritative regardless of its result and received no
+context or result from the excluded attempt.
+
+The accepted rater was an isolated-context AI rater—not a human rater. It was
+instructed to use only a neutral `items.jsonl` containing blind ID, analogy text,
+text hash, and empty label plus the frozen
+[`domain_labeling_guide.md`](domain_labeling_guide.md), and reported using only
+those artifacts. The packet contained no split, condition, seed, feature,
+intervention, classifier-label, or protocol fields. This was procedural
+blinding: shared-workspace filesystem access was not technically restricted. All
+64 labels were completed in the frozen taxonomy, then mechanically reattached to
+the original provenance rows without changing any non-label field.
+
+The repository's strict evaluator rejected the audit: overall exact agreement
+was 18/64 (28.125%), below the frozen 80% threshold. Among classifier classes
+with at least five audited examples, `biology/ecology` passed at 6/7,
+`computer science/software` passed at 6/6, and `other` failed at 0/38. The
+accepted attempt had no incomplete items or evaluator-detected size/seed errors;
+an independent recomputation matched the frozen selection. The classifier/rater
+labels did not satisfy the frozen validation criterion, but that disagreement
+alone does not identify which measurement component is substantively responsible.
+These labels are ineligible for feature discovery. No downstream bypass was used,
+no label/activation association was computed, and the untouched test split was
+not accessed.
+
+See [`domain_audit_report.json`](domain_audit_report.json) for thresholds,
+class-level results, rater disclosure, adjudication details, and SHA-256 bindings
+for the ignored local artifacts used in this audit and adjudication. It also
+preserves the excluded first attempt and an aborted malformed-packet execution
+without using either result.
 
 ## Prepare and verify prompts
 
@@ -131,7 +176,8 @@ the amendment hashes prefilled in `test_config.template.json`.
 
 ## Run the development pipeline
 
-An offline two-prompt contract check downloads no model weights:
+A model-free two-prompt contract check downloads no model weights (and prepares
+the small pinned prompt source automatically on a fresh clone):
 
 ```bash
 make latent-dry-run
@@ -158,18 +204,25 @@ python -m latent_escape.label_domains \
   --audit-output latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.jsonl
 ```
 
-Give only that new audit queue and
-[`domain_labeling_guide.md`](domain_labeling_guide.md) to the independent rater.
-After all 64 `manual_domain_label` values are filled, create a separate
+Do not give that repository path to the rater: it reveals `development_baseline`.
+First export a neutrally named `items.jsonl` containing only `blind_id`,
+`analogy_text`, `analogy_text_sha256`, and an empty `manual_domain_label`, and
+copy [`domain_labeling_guide.md`](domain_labeling_guide.md) to a neutral
+`guide.md` beside it outside the repository. Give only those two neutral paths to
+the independent rater. After all 64 labels are filled, verify the blind IDs,
+texts, hashes, order, taxonomy, and non-label fields against the frozen queue;
+then mechanically reattach only `manual_domain_label` to the original
+Amendment-4 queue. Archive the neutral packet and rater record only after rating.
+The resulting full-provenance artifact may then be used to create a separate
 adjudicated artifact—never overwrite the frozen BART source:
 
 ```bash
 python -m latent_escape.label_domains \
   --generations latent_escape/outputs/development-8ab8781/generations/development_baseline.jsonl \
   --source-classifier-labels latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.jsonl \
-  --manual-overrides latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.jsonl \
-  --output latent_escape/outputs/development-8ab8781/labels/development_baseline.adjudicated.jsonl \
-  --audit-output latent_escape/outputs/development-8ab8781/labels/development_baseline.adjudicated.audit.jsonl
+  --manual-overrides latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.neutral.completed.jsonl \
+  --output latent_escape/outputs/development-8ab8781/labels/development_baseline.neutral.adjudicated.jsonl \
+  --audit-output latent_escape/outputs/development-8ab8781/labels/development_baseline.neutral.adjudicated.audit.jsonl
 ```
 
 The import rejects guide/hash drift, exposed classifier fields, changed blinded
@@ -181,6 +234,9 @@ threshold and 24 hash-selected gate prompt IDs; use
 `semantic_review.template.json` for the required review record and pass the
 captured `development_baseline_prompt.pre_domain.jsonl` through
 `--pre-domain-activations` for the quantitative timing gate.
+
+After this gate failure, no feature-discovery, intervention, or test step below
+was run.
 
 The remaining CLIs are intentionally separate at the manual checkpoints:
 

@@ -1,0 +1,323 @@
+{
+  "schema_version": 1,
+  "artifact": "latent_escape_amendment4_domain_audit_gate",
+  "created_at_utc": "2026-09-02T01:51:15Z",
+  "updated_at_utc": "2026-09-02T02:32:31Z",
+  "status": "stop_measurement_gate_failed",
+  "split": "development",
+  "evaluation_code_git_commit": "e3b5b2be10da301ac58a8caf498aa0f601809c89",
+  "working_tree_at_gate": "Tracked pre-report state modified Makefile and latent_escape/README.md only; evaluation implementation files were unchanged. The untracked report was created after the gate.",
+  "test_split_touched": false,
+  "protocol": {
+    "id": "latent-escape-mvp-v1",
+    "revision": 3,
+    "sha256": "a9bdeb15de798bc56f888715fbe7bef47b69f1dd06f06dc7322013567ed9297a"
+  },
+  "amendment": {
+    "id": "latent-escape-protocol-amendment-4",
+    "effective_protocol_revision": 4,
+    "adopted_at": "2026-09-01",
+    "sha256": "4230be77caf8f2292362a654b2289f1be7531e87cfc48a18f6e79e327e365d46",
+    "timing_description": "transparent post-baseline, pre-analysis amendment; pre-analysis means before manual audit, prompt-level association, and feature analysis, while aggregate baseline results were already reviewed; not fully preregistered"
+  },
+  "domain_labeling_guide": {
+    "id": "latent-escape-domain-labeling-v1",
+    "path": "latent_escape/domain_labeling_guide.md",
+    "sha256": "40b191c7a9b1d24a1a9fc41583bf243f32e1f2c50f1ca711cb25e353814a5f4c"
+  },
+  "attempt_selection_policy": {
+    "accepted_attempt_id": "neutral_attempt_2",
+    "attempt_1_outcome_known_before_remediation": true,
+    "attempt_2_rater_received_attempt_1_context_or_result": false,
+    "attempt_2_acceptance_fixed_before_its_result": true,
+    "attempt_results_combined_or_selected_by_outcome": false,
+    "policy_note": "Attempt 1 was excluded for a discovered path-level blinding violation, not for its agreement result. The fresh neutral attempt 2 is authoritative regardless of pass or fail."
+  },
+  "audit_attempts": [
+    {
+      "attempt_id": "path_leaked_attempt_1",
+      "status": "excluded_design_violation",
+      "rater_kind": "isolated_ai_subagent",
+      "human_rater": false,
+      "technical_filesystem_isolation": false,
+      "design_violation": "The supplied absolute input path contained development-8ab8781 and development_baseline, disclosing split and condition despite row-level field blinding.",
+      "outcome_known_before_exclusion": true,
+      "used_for_authoritative_gate": false,
+      "used_downstream": false,
+      "input_queue": {
+        "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.jsonl",
+        "sha256": "c99d03ea988e5e838e4ce545aa680344b0efa9b2054604fe566d22d8e957bddf"
+      },
+      "completed_queue": {
+        "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.completed.jsonl",
+        "sha256": "a0d16c89b3318ccea8ce13059bc9d6175e0a7495f7c84c4068a72221b5967ac3"
+      },
+      "rater_record": {
+        "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.rater.json",
+        "sha256": "b4710552f3cce4081534029803231ff5105a0ffee58724c68b59083880260188"
+      },
+      "excluded_adjudication": {
+        "labels_path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.adjudicated.jsonl",
+        "labels_sha256": "bbb089cfb3324653f3fe29ab7c93ec1fbee841e47f4abba4caaf348fd54d8938",
+        "metadata_path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.adjudicated.jsonl.meta.json",
+        "metadata_sha256": "3151bf0c9429a7fa2028c585d65660ba0251db3f207117f41d273da42a576163"
+      },
+      "non_authoritative_diagnostic": {
+        "exact_agreement_count": 17,
+        "overall_exact_agreement": 0.265625,
+        "gate_pass": false
+      }
+    },
+    {
+      "attempt_id": "neutral_packet_packaging_abort",
+      "status": "aborted_before_validation_gate_or_adjudication",
+      "reason": "The first neutral packet writer emitted literal backslash-n separators, producing one malformed physical line rather than 64 JSONL records. The rater process was interrupted; its output was not parsed, inspected, adjudicated, or used.",
+      "used_for_authoritative_gate": false,
+      "used_downstream": false,
+      "malformed_packet": {
+        "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.neutral-packaging-abort.packet.txt",
+        "sha256": "082be6dc20045d9fed7555c059c72345f546c9ef688052b26c264968c9d8e5e5",
+        "valid_jsonl": false
+      },
+      "uninspected_output": {
+        "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.neutral-packaging-abort.uninspected-output.txt",
+        "sha256": "c59e390244cd9158b8d49ec0dd6ff2f5b8214af7b93482da008f0aa00a362132",
+        "content_inspected": false
+      }
+    },
+    {
+      "attempt_id": "neutral_attempt_2",
+      "status": "accepted_authoritative_attempt",
+      "used_for_authoritative_gate": true,
+      "used_beyond_validation_gate": false,
+      "rater_kind": "isolated_context_ai_subagent",
+      "human_rater": false,
+      "model_identifier": "not exposed by the orchestration runtime",
+      "execution_hardware": "not exposed by the orchestration runtime",
+      "sampling_configuration": "not exposed by the orchestration runtime",
+      "random_seed": null,
+      "blinding_control": "fresh context plus procedural instruction; not a filesystem access-control boundary",
+      "technical_filesystem_isolation": false,
+      "reported_artifacts_used": [
+        "neutral guide.md",
+        "neutral items.jsonl"
+      ],
+      "rater_received_attempt_1_context_or_result": false,
+      "completed_at_utc": "2026-09-02T02:17:16Z",
+      "neutral_guide": {
+        "rater_input_path": "/tmp/blind-rating.GTmcmc/guide.md",
+        "archived_source_path": "latent_escape/domain_labeling_guide.md",
+        "sha256": "40b191c7a9b1d24a1a9fc41583bf243f32e1f2c50f1ca711cb25e353814a5f4c"
+      },
+      "neutral_packet": {
+        "rater_input_path": "/tmp/blind-rating.GTmcmc/items.jsonl",
+        "archived_copy_path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.neutral.packet.jsonl",
+        "archived_only_after_rating": true,
+        "sha256": "99e6213ba8e30fd58d8c87637a9cd5f235183eb5dd48583dc8bf1f26134b85e5",
+        "row_count": 64,
+        "fields": [
+          "analogy_text",
+          "analogy_text_sha256",
+          "blind_id",
+          "manual_domain_label"
+        ],
+        "prohibited_fields_present": [],
+        "all_manual_labels_initially_null": true,
+        "blind_ids_text_hashes_text_and_order_match_frozen_queue": true
+      },
+      "minimal_completed_packet": {
+        "rater_output_path": "/tmp/blind-rating.GTmcmc/completed.jsonl",
+        "archived_copy_path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.neutral.rater-completed.jsonl",
+        "sha256": "a6bea556112fab057d830a9914bb60d8d097d0565550cb458b462b9dd7ac941c",
+        "row_count": 64,
+        "non_label_fields_preserved": true,
+        "all_labels_in_frozen_taxonomy": true
+      },
+      "rater_record": {
+        "rater_output_path": "/tmp/blind-rating.GTmcmc/rater.json",
+        "archived_copy_path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.neutral.rater.json",
+        "sha256": "562f5afea94e376052a238bbd77051ba77cca6923ec00f33ed4c20021dad6c90"
+      },
+      "provenance_reattached_completed_queue": {
+        "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.neutral.completed.jsonl",
+        "sha256": "3ffc6655dcd597f11e34741d3336e610d14625db00cbf263549f072a1ab6689b",
+        "row_count": 64,
+        "all_original_non_label_fields_preserved": true
+      },
+      "label_counts": {
+        "AI/neural networks": 1,
+        "arts/literature": 13,
+        "biology/ecology": 14,
+        "chemistry/materials": 3,
+        "computer science/software": 12,
+        "economics/markets": 2,
+        "education/learning": 2,
+        "engineering/control": 5,
+        "everyday/household": 3,
+        "geography/earth/environment": 0,
+        "history": 0,
+        "law/policy": 1,
+        "medicine/public health": 1,
+        "organizations/governance": 4,
+        "other": 0,
+        "physics": 0,
+        "psychology/cognition": 0,
+        "sociology/culture": 2,
+        "sports/games": 1
+      }
+    }
+  ],
+  "adjudication": {
+    "authoritative_attempt_id": "neutral_attempt_2",
+    "mode": "adjudication_from_frozen_classifier_artifact",
+    "classifier_id": "facebook/bart-large-mnli@d7645e127eaf1aefc7862fd59a17a5aa8558b8ce",
+    "classifier_source": {
+      "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.jsonl",
+      "sha256": "5c0dce994e4a590a60004a17fdb7e25461de640d1c04bdb90274f55584edfcc4",
+      "metadata_path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.jsonl.meta.json",
+      "metadata_sha256": "495bffd691fc512f91116cae713978cd7a28829d3124017bc8ff23e17a00b269"
+    },
+    "generation_sha256": "bd0f25d222ccf10cf2af3a8984d52e85678024fc25387a05df5abb5f2d6c6be2",
+    "label_count": 640,
+    "manual_override_count": 64,
+    "manual_override_count_semantics": "number of imported audited rows, not number of classifier-rater disagreements",
+    "actual_disagreement_count": 46,
+    "source_packet_and_adjudicated_membership_match_recomputed_frozen_selection": true,
+    "all_adjudicated_rows_are_development_split": true,
+    "labels": {
+      "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.neutral.adjudicated.jsonl",
+      "sha256": "ae0fb7ac9614e4a6440d521957410e659e06e062f23c8dd722b386f8399b0208"
+    },
+    "metadata": {
+      "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.neutral.adjudicated.jsonl.meta.json",
+      "sha256": "b18e1bf22fb2e141e874956c428fe5eb7fd78d12708ce386618447dd1a9f3e36"
+    },
+    "audit_output": {
+      "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.neutral.adjudicated.audit.jsonl",
+      "sha256": "3ffc6655dcd597f11e34741d3336e610d14625db00cbf263549f072a1ab6689b"
+    },
+    "blinded_output": {
+      "path": "latent_escape/outputs/development-8ab8781/labels/development_baseline.neutral.adjudicated.blinded.jsonl",
+      "sha256": "b8efb5946ae4d9b19a67ea39bd55a07b7475f9014241ee8bd174075f576dabf9"
+    },
+    "frozen_environment_replay": {
+      "command_mode": "uv run --frozen; source-classifier reuse; local-files-only; distinct temporary outputs",
+      "labels_byte_identical": true,
+      "audit_output_byte_identical": true,
+      "blinded_output_byte_identical": true
+    },
+    "adjudicated_domain_counts": {
+      "AI/neural networks": 1,
+      "arts/literature": 26,
+      "biology/ecology": 77,
+      "chemistry/materials": 22,
+      "computer science/software": 66,
+      "economics/markets": 12,
+      "education/learning": 17,
+      "engineering/control": 10,
+      "everyday/household": 6,
+      "geography/earth/environment": 10,
+      "history": 16,
+      "law/policy": 7,
+      "medicine/public health": 4,
+      "organizations/governance": 8,
+      "other": 345,
+      "physics": 2,
+      "psychology/cognition": 1,
+      "sociology/culture": 3,
+      "sports/games": 7
+    }
+  },
+  "audit_gate": {
+    "authoritative_attempt_id": "neutral_attempt_2",
+    "definition_source": "latent_escape/protocol.json:domain_labeling.audit_gate",
+    "evaluator": "latent_escape.evaluate.validate_label_audit",
+    "audit_fraction": 0.1,
+    "audit_seed": "latent-escape-domain-audit-v1",
+    "overall_exact_agreement_minimum": 0.8,
+    "per_classifier_class_minimum_count": 5,
+    "per_classifier_class_exact_agreement_minimum": 0.6,
+    "strict_evaluator_outcome": "rejected",
+    "queued_count": 64,
+    "completed_count": 64,
+    "incomplete_count": 0,
+    "exact_agreement_count": 18,
+    "disagreement_count": 46,
+    "overall_exact_agreement": 0.28125,
+    "overall_threshold_pass": false,
+    "evaluator_detected_audit_design_error_run_ids": [],
+    "integrity_checks": {
+      "source_membership_matches_recomputed_selection": true,
+      "neutral_packet_membership_matches_recomputed_selection": true,
+      "completed_membership_matches_recomputed_selection": true,
+      "adjudicated_membership_matches_recomputed_selection": true,
+      "metadata_authenticates_adjudicated_labels": true,
+      "metadata_authenticates_completed_queue": true,
+      "attempt_1_excluded": true,
+      "attempt_results_not_combined": true
+    },
+    "by_classifier_domain": {
+      "arts/literature": {"count": 2, "exact_agreement_count": 1, "exact_agreement": 0.5},
+      "biology/ecology": {"count": 7, "exact_agreement_count": 6, "exact_agreement": 0.8571428571428571},
+      "chemistry/materials": {"count": 2, "exact_agreement_count": 0, "exact_agreement": 0.0},
+      "computer science/software": {"count": 6, "exact_agreement_count": 6, "exact_agreement": 1.0},
+      "economics/markets": {"count": 1, "exact_agreement_count": 1, "exact_agreement": 1.0},
+      "education/learning": {"count": 2, "exact_agreement_count": 2, "exact_agreement": 1.0},
+      "geography/earth/environment": {"count": 1, "exact_agreement_count": 0, "exact_agreement": 0.0},
+      "history": {"count": 2, "exact_agreement_count": 0, "exact_agreement": 0.0},
+      "law/policy": {"count": 1, "exact_agreement_count": 1, "exact_agreement": 1.0},
+      "organizations/governance": {"count": 1, "exact_agreement_count": 1, "exact_agreement": 1.0},
+      "other": {"count": 38, "exact_agreement_count": 0, "exact_agreement": 0.0},
+      "sports/games": {"count": 1, "exact_agreement_count": 0, "exact_agreement": 0.0}
+    },
+    "classes_subject_to_class_threshold": {
+      "biology/ecology": {"count": 7, "exact_agreement": 0.8571428571428571, "pass": true},
+      "computer science/software": {"count": 6, "exact_agreement": 1.0, "pass": true},
+      "other": {"count": 38, "exact_agreement": 0.0, "pass": false}
+    },
+    "gate_pass": false,
+    "failed_conditions": [
+      "overall exact agreement 0.28125 is below 0.8",
+      "classifier class other has 0.0 exact agreement across 38 audited examples, below 0.6"
+    ],
+    "diagnostic_reporting_note": "After the strict evaluator rejected attempt 2, allow_unreviewed=true was used only to emit its exact diagnostic summary. No downstream analysis used that mode.",
+    "downstream_bypass_used": false
+  },
+  "interpretation": {
+    "supported": "The pinned classifier labels and the accepted independent AI-rater labels do not satisfy the frozen validation criterion on this audit sample.",
+    "not_supported": "The disagreement alone does not identify whether the classifier, the rater, the guide, or taxonomy ambiguity is substantively responsible.",
+    "eligibility": "These labels are ineligible for feature discovery under the frozen protocol."
+  },
+  "process_guards": {
+    "prompt_level_label_activation_associations_inspected": false,
+    "feature_discovery_authorized": false,
+    "feature_discovery_run": false,
+    "feature_selected": false,
+    "development_intervention_run": false,
+    "test_access_authorized": false,
+    "test_split_touched": false,
+    "confirmatory_experiment_run": false
+  },
+  "reproducibility_validation": {
+    "make_check": "passed_27_of_27",
+    "make_latent_dry_run": "passed_from_fresh_prompt_artifact_state",
+    "latent_dry_run_dependency_fix": "latent-dry-run now depends on latent-prompts",
+    "hardware": {
+      "gate_and_adjudication_device": "CPU only; no model inference and no GPU used",
+      "host_architecture": "arm64",
+      "platform": "macOS-15.5-arm64-arm-64bit"
+    },
+    "software": {
+      "python": "3.10.18 CPython",
+      "numpy": "2.0.2",
+      "uv": "0.7.20"
+    },
+    "artifact_sha256": {
+      "uv.lock": "2ac8aa4d386d47e2a6ceb523aa735c01965c7656f103d564a2ac87bbbdd228a1",
+      "latent_escape/label_domains.py": "11752fdc71e1827507d5e1a7c316959c95f2b7476a2dd665bb57a5f9e255be01",
+      "latent_escape/evaluate.py": "1a0f92028160003f2bde419e1cd52d72c00adbd16eb22c3c2b960d76c2345744",
+      "latent_escape/protocol_amendment.py": "7800ecb36d7ab30a50e357cc91ae7164abef6575442ac965ffa0c498ab64769b"
+    }
+  },
+  "decision": "Stop before feature discovery. The accepted neutral attempt failed the frozen Amendment 4 audit gate; the existing protocol does not authorize feature discovery, intervention, or test access from these labels."
+}

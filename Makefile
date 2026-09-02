@@ -19,7 +19,7 @@ latent-prompts:
 latent-test:
 	uv run python -m pytest -q latent_escape/tests
 
-latent-dry-run: latent-protocol
+latent-dry-run: latent-prompts
 	uv run python -m latent_escape.generate --dry-run --limit-prompts 2 --overwrite
 	uv run python -m latent_escape.capture_activations --dry-run --limit-prompts 2 --overwrite --generations latent_escape/outputs/generations/development_baseline.dry-run.jsonl
 	uv run python -m latent_escape.label_domains --generations latent_escape/outputs/generations/development_baseline.dry-run.jsonl --output latent_escape/outputs/labels/development_baseline.dry-run.jsonl --backend heuristic
