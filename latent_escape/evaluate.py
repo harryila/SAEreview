@@ -22,6 +22,11 @@ from typing import Any, Iterable
 
 import numpy as np
 
+try:  # Support package imports and direct CLI execution.
+    from .protocol_amendment import amendment_sha256, load_protocol_amendment
+except ImportError:  # pragma: no cover - direct script execution
+    from protocol_amendment import amendment_sha256, load_protocol_amendment
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL_PATH = ROOT / "latent_escape" / "protocol.json"
@@ -29,6 +34,11 @@ POWER_REPORT_PATH = ROOT / "latent_escape" / "power_report.json"
 DISTANCE_MODEL_REPO = "sentence-transformers/all-MiniLM-L6-v2"
 DISTANCE_MODEL_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
 QUALITY_REQUIRED_ARMS = frozenset({"baseline", "targeted_feature_suppression"})
+QUALITY_AMENDMENT_PATH = ROOT / "latent_escape" / "protocol_amendment_4.json"
+QUALITY_RATING_ID_NAMESPACE = "latent-escape-quality-rating-v2"
+
+GenerationKey = tuple[str, str, str, int, int]
+QualityAssignment = tuple[GenerationKey, str]
 
 
 def sha256_bytes(payload: bytes) -> str:
@@ -41,6 +51,36 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def canonical_json_hash(value: Any) -> str:
+    payload = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return sha256_bytes(payload)
+
+
+def amendment_provenance(amendment: dict[str, Any]) -> dict[str, Any]:
+    guide = amendment["domain_labeling_guide"]
+    return {
+        "effective_protocol_revision": int(amendment["effective_protocol_revision"]),
+        "protocol_amendment_id": str(amendment["amendment_id"]),
+        "protocol_amendment_sha256": amendment_sha256(),
+        "domain_labeling_guide_id": str(guide["id"]),
+        "domain_labeling_guide_sha256": str(guide["sha256"]),
+    }
+
+
+def validate_amendment_provenance(
+    record: dict[str, Any], expected: dict[str, Any], artifact_name: str
+) -> None:
+    drift = {
+        key: {"observed": record.get(key), "expected": value}
+        for key, value in expected.items()
+        if record.get(key) != value
+    }
+    if drift:
+        raise ValueError(f"{artifact_name} amendment/guide provenance drift: {drift}")
 
 
 def atomic_write_json(path: Path, value: Any) -> str:
@@ -120,6 +160,342 @@ def quality_blind_id(record: dict[str, Any]) -> str:
     )[:32]
 
 
+def quality_rating_blind_id(record: dict[str, Any], rating_slot: str) -> str:
+    """Return a different opaque ID for primary and reliability assignments."""
+
+    if rating_slot not in {"primary", "reliability"}:
+        raise ValueError(f"unknown structural-quality rating slot {rating_slot!r}")
+    return sha256_bytes(
+        (
+            f"{QUALITY_RATING_ID_NAMESPACE}|{rating_slot}|"
+            f"{quality_blind_id(record)}"
+        ).encode("utf-8")
+    )[:32]
+
+
+def quality_guardrail_sampling(protocol: dict[str, Any]) -> dict[str, Any]:
+    """Load the frozen revision-4 quality-sampling amendment."""
+
+    value = protocol.get("quality_guardrail_sampling")
+    if value is None and QUALITY_AMENDMENT_PATH.exists():
+        amendment = load_protocol_amendment(protocol)
+        value = amendment.get("quality_guardrail_sampling")
+    if not isinstance(value, dict):
+        raise ValueError("missing frozen quality_guardrail_sampling amendment")
+    required = {
+        "pair_selection_seed",
+        "reliability_selection_seed",
+        "samples_per_prompt",
+        "reliability_prompt_fraction",
+        "required_arms",
+        "primary_rater_estimand",
+        "duplicate_rater_use",
+        "expected_workload",
+    }
+    missing = required - set(value)
+    if missing:
+        raise ValueError(
+            f"quality_guardrail_sampling lacks required fields: {sorted(missing)}"
+        )
+    if int(value["samples_per_prompt"]) != 1:
+        raise ValueError("structural quality must use one paired sample per prompt")
+    if list(value["required_arms"]) != [
+        "baseline",
+        "targeted_feature_suppression",
+    ]:
+        raise ValueError("quality sampling arms differ from the frozen protocol")
+    return value
+
+
+def quality_pair_hash(
+    selection_seed: str,
+    split: str,
+    prompt_id: str,
+    sample_index: int,
+    paired_seed: int,
+) -> str:
+    """Hash a pre-outcome paired generation identity for sample selection."""
+
+    return sha256_bytes(
+        (
+            f"{selection_seed}|{split}|{prompt_id}|"
+            f"{int(sample_index)}|{int(paired_seed)}"
+        ).encode("utf-8")
+    )
+
+
+def select_quality_pair(
+    selection_seed: str,
+    split: str,
+    prompt_id: str,
+    candidates: set[tuple[int, int]],
+) -> tuple[int, int]:
+    """Select one sample/seed pair without consulting generated outcomes."""
+
+    if not candidates:
+        raise ValueError(f"prompt {prompt_id} has no paired quality candidates")
+    return min(
+        candidates,
+        key=lambda pair: (
+            quality_pair_hash(
+                selection_seed, split, prompt_id, pair[0], pair[1]
+            ),
+            pair,
+        ),
+    )
+
+
+def select_reliability_prompts(
+    selection_seed: str,
+    split: str,
+    prompt_ids: set[str],
+    prompt_count: int,
+) -> set[str]:
+    """Hash-select the frozen prompt-level duplicate-rater subset."""
+
+    if not 0 <= prompt_count <= len(prompt_ids):
+        raise ValueError("invalid duplicate-rater prompt count")
+    ordered = sorted(
+        prompt_ids,
+        key=lambda prompt_id: (
+            sha256_bytes(
+                f"{selection_seed}|{split}|{prompt_id}".encode("utf-8")
+            ),
+            prompt_id,
+        ),
+    )
+    return set(ordered[:prompt_count])
+
+
+def quality_sampling_plan_sha256(
+    selected_pairs: dict[str, tuple[int, int]],
+) -> str:
+    """Hash the canonical pre-outcome prompt/sample/seed quality plan."""
+
+    plan = [
+        {
+            "prompt_id": prompt_id,
+            "sample_index": int(pair[0]),
+            "paired_seed": int(pair[1]),
+        }
+        for prompt_id, pair in sorted(selected_pairs.items())
+    ]
+    return canonical_json_hash(plan)
+
+
+def quality_reliability_subset_sha256(prompt_ids: set[str]) -> str:
+    """Hash the canonical prompt-level duplicate-rater subset."""
+
+    return canonical_json_hash(sorted(prompt_ids))
+
+
+def validate_quality_plan_config(
+    config: dict[str, Any], sampling_provenance: dict[str, Any]
+) -> None:
+    """Bind a test run to the exact deterministic quality-rating plan."""
+
+    expected = {
+        "quality_sampling_plan_sha256": sampling_provenance[
+            "quality_sampling_plan_sha256"
+        ],
+        "quality_reliability_subset_sha256": sampling_provenance[
+            "quality_reliability_subset_sha256"
+        ],
+    }
+    drift = {
+        key: {"observed": config.get(key), "expected": value}
+        for key, value in expected.items()
+        if config.get(key) != value
+    }
+    if drift:
+        raise ValueError(f"test quality sampling plan hash drift: {drift}")
+
+
+def validate_generation_test_config_binding(
+    generations: list[dict[str, Any]], test_config_path: Path
+) -> None:
+    """Reject confirmatory records created under a different frozen config."""
+
+    expected = sha256_file(test_config_path)
+    mismatched = [
+        join_key(generation)
+        for generation in generations
+        if generation.get("test_config_sha256") != expected
+    ]
+    if mismatched:
+        raise ValueError(
+            f"{len(mismatched)} test generations have test-config hash drift"
+        )
+
+
+def select_quality_generations(
+    generations: list[dict[str, Any]],
+    split: str,
+    protocol: dict[str, Any],
+) -> tuple[list[dict[str, Any]], set[GenerationKey], dict[str, Any]]:
+    """Select the frozen paired quality sample and reliability assignments."""
+
+    sampling = quality_guardrail_sampling(protocol)
+    workload_name = "test" if split == "test" else "development_gate"
+    workload = sampling["expected_workload"].get(workload_name)
+    if not isinstance(workload, dict):
+        raise ValueError(f"missing quality workload for {workload_name}")
+    required_arms = ["baseline", "targeted_feature_suppression"]
+    covered = [
+        generation
+        for generation in generations
+        if arm_name(generation) in set(required_arms)
+    ]
+    if not covered:
+        raise ValueError("no frozen structural-quality arms were supplied")
+
+    grouped: dict[tuple[str, str], dict[tuple[int, int], dict[str, Any]]] = (
+        defaultdict(dict)
+    )
+    prompts_by_arm: dict[str, set[str]] = defaultdict(set)
+    for generation in covered:
+        if str(generation.get("split")) != split:
+            raise ValueError("quality generation belongs to the wrong split")
+        prompt_id = str(generation["prompt_id"])
+        arm = arm_name(generation)
+        pair = pair_key(generation)
+        bucket = grouped[(prompt_id, arm)]
+        if pair in bucket:
+            raise ValueError(
+                f"duplicate quality candidate for prompt {prompt_id}, arm {arm}, pair {pair}"
+            )
+        bucket[pair] = generation
+        prompts_by_arm[arm].add(prompt_id)
+
+    expected_prompts = int(workload["prompt_count"])
+    prompt_ids = prompts_by_arm[required_arms[0]]
+    if len(prompt_ids) != expected_prompts:
+        raise ValueError(
+            f"quality workload expects {expected_prompts} prompts, found {len(prompt_ids)}"
+        )
+    if any(prompts_by_arm[arm] != prompt_ids for arm in required_arms[1:]):
+        raise ValueError("baseline and targeted quality prompt sets differ")
+    expected_candidates = (
+        int(protocol["generation"]["test_paired_samples_per_prompt_per_condition"])
+        if split == "test"
+        else int(protocol["development_intervention_gate"]["paired_samples_per_prompt"])
+    )
+
+    selected: list[dict[str, Any]] = []
+    selected_pairs: dict[str, tuple[int, int]] = {}
+    for prompt_id in sorted(prompt_ids):
+        arm_pairs = {
+            arm: set(grouped[(prompt_id, arm)]) for arm in required_arms
+        }
+        baseline_pairs = arm_pairs[required_arms[0]]
+        if len(baseline_pairs) != expected_candidates:
+            raise ValueError(
+                f"prompt {prompt_id} requires {expected_candidates} paired candidates; "
+                f"found {len(baseline_pairs)}"
+            )
+        if any(pairs != baseline_pairs for pairs in arm_pairs.values()):
+            raise ValueError(
+                f"baseline and targeted sample/seed pairs differ for prompt {prompt_id}"
+            )
+        chosen = select_quality_pair(
+            str(sampling["pair_selection_seed"]),
+            split,
+            prompt_id,
+            baseline_pairs,
+        )
+        selected_pairs[prompt_id] = chosen
+        selected.extend(grouped[(prompt_id, arm)][chosen] for arm in required_arms)
+
+    reliability_count = int(workload["reliability_prompt_count"])
+    fraction_count = int(
+        math.ceil(float(sampling["reliability_prompt_fraction"]) * len(prompt_ids))
+    )
+    if reliability_count != fraction_count:
+        raise ValueError("frozen reliability workload does not match its prompt fraction")
+    reliability_prompts = select_reliability_prompts(
+        str(sampling["reliability_selection_seed"]),
+        split,
+        prompt_ids,
+        reliability_count,
+    )
+    reliability_keys = {
+        join_key(generation)
+        for generation in selected
+        if str(generation["prompt_id"]) in reliability_prompts
+    }
+    unique_count = len(selected)
+    duplicate_count = len(reliability_keys)
+    expected_counts = {
+        "unique_generation_ratings": unique_count,
+        "duplicate_ratings": duplicate_count,
+        "total_rating_tasks": unique_count + duplicate_count,
+    }
+    drifted = {
+        key: (int(workload[key]), observed)
+        for key, observed in expected_counts.items()
+        if int(workload[key]) != observed
+    }
+    if drifted:
+        raise ValueError(f"quality workload counts have drifted: {drifted}")
+
+    selected.sort(
+        key=lambda row: (
+            str(row["prompt_id"]),
+            required_arms.index(arm_name(row)),
+        )
+    )
+    plan_hash = quality_sampling_plan_sha256(selected_pairs)
+    reliability_hash = quality_reliability_subset_sha256(reliability_prompts)
+    return selected, reliability_keys, {
+        "split": split,
+        "selection_unit": "paired_sample_within_source_prompt",
+        "pair_selection_seed": sampling["pair_selection_seed"],
+        "samples_per_prompt": int(sampling["samples_per_prompt"]),
+        "prompt_count": len(prompt_ids),
+        "selected_pairs": {
+            prompt_id: {
+                "sample_index": pair[0],
+                "paired_seed": pair[1],
+            }
+            for prompt_id, pair in sorted(selected_pairs.items())
+        },
+        "required_arms": list(sampling["required_arms"]),
+        "unique_generation_rating_count": unique_count,
+        "reliability_selection_seed": sampling["reliability_selection_seed"],
+        "reliability_prompt_fraction": float(
+            sampling["reliability_prompt_fraction"]
+        ),
+        "reliability_prompt_ids": sorted(reliability_prompts),
+        "reliability_prompt_count": len(reliability_prompts),
+        "duplicate_rating_count": duplicate_count,
+        "total_rating_task_count": unique_count + duplicate_count,
+        "quality_sampling_plan_sha256": plan_hash,
+        "quality_reliability_subset_sha256": reliability_hash,
+        "primary_rater_estimand": sampling["primary_rater_estimand"],
+        "duplicate_rater_use": sampling["duplicate_rater_use"],
+    }
+
+
+def quality_assignment_mapping(
+    generations: list[dict[str, Any]],
+    reliability_keys: set[GenerationKey],
+) -> dict[str, QualityAssignment]:
+    """Map opaque rating IDs to a generation and its prespecified rater slot."""
+
+    mapping: dict[str, QualityAssignment] = {}
+    for generation in generations:
+        key = join_key(generation)
+        slots = ["primary"]
+        if key in reliability_keys:
+            slots.append("reliability")
+        for slot in slots:
+            blind_id = quality_rating_blind_id(generation, slot)
+            if blind_id in mapping:
+                raise ValueError(f"duplicate quality rating blind ID {blind_id}")
+            mapping[blind_id] = (key, slot)
+    return mapping
+
+
 def target_only_text(record: dict[str, Any]) -> tuple[str, str]:
     """Extract target-system content without reusing the self-reported domain."""
     parsed = record.get("parsed_output", record.get("parsed_json"))
@@ -186,8 +562,24 @@ def structural_quality(row: dict[str, Any]) -> float:
 
 
 def validate_label_audit(
-    labels: list[dict[str, Any]], allow_unreviewed: bool
+    labels: list[dict[str, Any]],
+    allow_unreviewed: bool,
+    expected_amendment: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    if expected_amendment:
+        audit_expected = {
+            key: expected_amendment[key]
+            for key in (
+                "protocol_amendment_id",
+                "protocol_amendment_sha256",
+                "domain_labeling_guide_id",
+                "domain_labeling_guide_sha256",
+            )
+        }
+        for row in labels:
+            validate_amendment_provenance(
+                row, audit_expected, "independent domain-label row"
+            )
     selected = [row for row in labels if row.get("audit_selected") is True]
     incomplete = [row for row in selected if row.get("manual_audited") is not True]
     agreements = [
@@ -243,21 +635,22 @@ def validate_label_audit(
 def load_quality(
     paths: list[Path] | None,
     allow_unblinded: bool,
-    blind_id_mapping: dict[str, tuple[str, str, str, int, int]],
+    blind_id_mapping: dict[str, QualityAssignment],
     expected_judge_protocol: str,
     expected_prompt_sha256: str,
-    expected_ratings_per_generation: int,
-) -> tuple[dict[tuple[str, str, str, int, int], float], dict[str, Any]]:
+    expected_primary_keys: set[GenerationKey],
+    expected_reliability_keys: set[GenerationKey],
+) -> tuple[dict[GenerationKey, float], dict[str, Any]]:
     if not paths:
         return {}, {"available": False, "rating_count": 0}
     rows = read_jsonl_many(paths)
-    by_key: dict[tuple[str, str, str, int, int], list[float]] = defaultdict(list)
+    ratings: dict[QualityAssignment, tuple[float, str]] = {}
     for row in rows:
         blind_id = row.get("blind_quality_id")
         if blind_id is not None:
             if str(blind_id) not in blind_id_mapping:
                 raise ValueError(f"unknown blind_quality_id {blind_id}")
-            key = blind_id_mapping[str(blind_id)]
+            key, rating_slot = blind_id_mapping[str(blind_id)]
             derived_blinding = True
         else:
             if not allow_unblinded:
@@ -265,7 +658,13 @@ def load_quality(
                     "primary quality rows must join through blind_quality_id"
                 )
             key = join_key(row)
+            rating_slot = str(row.get("rating_slot", "primary"))
             derived_blinding = False
+        assignment = (key, rating_slot)
+        if assignment in ratings:
+            raise ValueError(
+                f"duplicate structural-quality {rating_slot} assignment for {key}"
+            )
         if not allow_unblinded and not derived_blinding and not (
             row.get("blinded") is True or row.get("condition_hidden") is True
         ):
@@ -275,58 +674,131 @@ def load_quality(
             or row.get("judge_prompt_sha256") != expected_prompt_sha256
         ):
             raise ValueError("quality judge protocol or rubric hash has drifted")
-        by_key[key].append(structural_quality(row))
-    if not allow_unblinded and any(
-        len(values) != expected_ratings_per_generation for values in by_key.values()
-    ):
-        raise ValueError("quality ratings per generation differ from the frozen protocol")
+        rater_id = str(row.get("rater_id") or "").strip()
+        if not allow_unblinded and not rater_id:
+            raise ValueError("blinded structural-quality rows require nonempty rater_id")
+        ratings[assignment] = (structural_quality(row), rater_id)
+
+    expected_assignments = {
+        (key, "primary") for key in expected_primary_keys
+    } | {(key, "reliability") for key in expected_reliability_keys}
+    if set(ratings) != expected_assignments:
+        missing = len(expected_assignments - set(ratings))
+        extra = len(set(ratings) - expected_assignments)
+        raise ValueError(
+            "quality ratings do not match the frozen primary/reliability assignments: "
+            f"{missing} missing, {extra} extra"
+        )
+    for key in expected_reliability_keys:
+        primary_rater = ratings[(key, "primary")][1]
+        reliability_rater = ratings[(key, "reliability")][1]
+        if not allow_unblinded and primary_rater == reliability_rater:
+            raise ValueError(
+                "duplicate structural-quality assignments require distinct rater IDs"
+            )
+
+    quality_map = {
+        key: ratings[(key, "primary")][0] for key in expected_primary_keys
+    }
+    primary_scores = [
+        ratings[(key, "primary")][0] for key in sorted(expected_reliability_keys)
+    ]
+    reliability_scores = [
+        ratings[(key, "reliability")][0] for key in sorted(expected_reliability_keys)
+    ]
+    if primary_scores:
+        exact_agreement = float(
+            np.mean(np.asarray(primary_scores) == np.asarray(reliability_scores))
+        )
+        within_one = float(
+            np.mean(
+                np.abs(
+                    np.asarray(primary_scores, dtype=np.float64)
+                    - np.asarray(reliability_scores, dtype=np.float64)
+                )
+                <= 1.0
+            )
+        )
+        from sklearn.metrics import cohen_kappa_score
+
+        kappa = float(
+            cohen_kappa_score(primary_scores, reliability_scores, weights="linear")
+        )
+        linear_kappa: float | None = kappa if math.isfinite(kappa) else None
+    else:
+        exact_agreement = None
+        within_one = None
+        linear_kappa = None
+    ratings_per_generation = Counter(
+        2 if key in expected_reliability_keys else 1 for key in expected_primary_keys
+    )
     return (
-        {key: float(np.mean(values)) for key, values in by_key.items()},
+        quality_map,
         {
             "available": True,
             "rating_count": len(rows),
-            "rated_generation_count": len(by_key),
-            "ratings_per_generation": dict(
-                sorted(Counter(len(values) for values in by_key.values()).items())
-            ),
+            "primary_rating_count": len(expected_primary_keys),
+            "duplicate_rating_count": len(expected_reliability_keys),
+            "rated_generation_count": len(expected_primary_keys),
+            "ratings_per_generation": dict(sorted(ratings_per_generation.items())),
+            "primary_endpoint_uses_duplicate_ratings": False,
+            "duplicate_rater_reliability": {
+                "prompt_count": len(
+                    {key[1] for key in expected_reliability_keys}
+                ),
+                "item_count": len(expected_reliability_keys),
+                "exact_agreement": exact_agreement,
+                "within_one_point_agreement": within_one,
+                "linear_weighted_cohen_kappa": linear_kappa,
+            },
         },
     )
 
 
 def prepare_quality_command(args: argparse.Namespace) -> int:
     protocol = json.loads(PROTOCOL_PATH.read_text())
+    amendment = load_protocol_amendment(protocol)
+    effective_provenance = amendment_provenance(amendment)
     quality_protocol = protocol["outcomes"]["quality_guardrail"]
+    test_config: dict[str, Any] = {}
+    if not args.split:
+        raise ValueError("quality queue preparation requires an explicit split")
+    if args.split == "test":
+        if args.test_config is None:
+            raise ValueError("test quality preparation requires --test-config")
+        test_config = load_test_config(args.test_config, protocol, args.split)
     generations = read_jsonl_many(args.generations)
-    if args.split:
-        generations = [row for row in generations if row.get("split") == args.split]
+    generations = [row for row in generations if row.get("split") == args.split]
     if not generations:
         raise ValueError("no generations selected for quality queue")
+    if args.split == "test":
+        validate_generation_test_config_binding(generations, args.test_config)
     all_generation_count = len(generations)
-    generations = [row for row in generations if requires_structural_quality(row)]
-    if not generations:
-        raise ValueError(
-            "no baseline or full-strength targeted outputs selected for quality queue"
-        )
+    quality_generations, reliability_keys, selection = select_quality_generations(
+        generations, args.split, protocol
+    )
+    if test_config:
+        validate_quality_plan_config(test_config, selection)
+    assignments = quality_assignment_mapping(quality_generations, reliability_keys)
     manifest_path = args.prompt_manifest
     manifest_rows = read_jsonl_many([manifest_path])
     manifest = {str(row["prompt_id"]): row for row in manifest_rows}
     queue: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for generation in generations:
+    generations_by_key = {
+        join_key(generation): generation for generation in quality_generations
+    }
+    for blind_id, (key, _rating_slot) in assignments.items():
+        generation = generations_by_key[key]
         if generation.get("protocol_id") != protocol["protocol_id"]:
             raise ValueError("generation protocol ID mismatch")
         prompt_id = str(generation["prompt_id"])
         if prompt_id not in manifest:
             raise ValueError(f"prompt {prompt_id} is absent from prompt manifest")
-        blind_id = quality_blind_id(generation)
-        if blind_id in seen:
-            raise ValueError(f"duplicate quality blind ID {blind_id}")
-        seen.add(blind_id)
         prompt = manifest[prompt_id]
         queue.append(
             {
                 "schema_version": 1,
-                "record_type": "blinded_structural_quality_item",
+                "record_type": "blinded_structural_quality_rating_assignment",
                 "blind_quality_id": blind_id,
                 "source_system": prompt.get("source_name"),
                 "source_domain": prompt.get("source_domain"),
@@ -337,6 +809,7 @@ def prepare_quality_command(args: argparse.Namespace) -> int:
                 "judge_prompt_sha256": quality_protocol["rubric_sha256"],
                 "structural_quality": None,
                 "rater_id": None,
+                "blinded": True,
             }
         )
     queue.sort(key=lambda row: row["blind_quality_id"])
@@ -359,14 +832,18 @@ def prepare_quality_command(args: argparse.Namespace) -> int:
         "artifact": "blinded_structural_quality_queue",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "protocol_sha256": sha256_file(PROTOCOL_PATH),
+        **effective_provenance,
         "manifest_sha256": sha256_file(manifest_path),
         "generation_files": [
             {"path": str(path), "sha256": sha256_file(path)} for path in args.generations
         ],
         "queue_sha256": sha256_bytes(payload),
         "item_count": len(queue),
-        "included_arms": sorted({arm_name(row) for row in generations}),
-        "excluded_generation_count": all_generation_count - len(generations),
+        "primary_rating_count": len(quality_generations),
+        "duplicate_rating_count": len(reliability_keys),
+        "included_arms": sorted({arm_name(row) for row in quality_generations}),
+        "excluded_generation_count": all_generation_count - len(quality_generations),
+        "quality_sampling": selection,
         "judge_protocol_id": quality_protocol["judge_protocol_id"],
         "judge_prompt_sha256": quality_protocol["rubric_sha256"],
         "hidden_fields": [
@@ -547,6 +1024,11 @@ def load_test_config(path: Path, protocol: dict[str, Any], split: str) -> dict[s
     config = json.loads(path.read_text())
     if config.get("protocol_id") != protocol["protocol_id"]:
         raise ValueError("test config protocol mismatch")
+    validate_amendment_provenance(
+        config,
+        amendment_provenance(load_protocol_amendment(protocol)),
+        "test config",
+    )
     required = protocol["required_before_test"]
     missing = [
         key
@@ -688,9 +1170,9 @@ def arm_metrics(
             "domain_entropy_normalized": raw_entropy / math.log(len(taxonomy)),
             "distinct_domain_count": float(len(set(domains))),
             "json_validity_rate": float(np.mean([row["json_valid"] for row in rows])),
-            "structural_quality": float(np.mean(qualities))
-            if len(qualities) == len(rows)
-            else None,
+            # Quality is deliberately measured on one hash-selected paired
+            # sample per prompt; domain outcomes still use every row above.
+            "structural_quality": float(np.mean(qualities)) if qualities else None,
             "source_target_semantic_distance": float(np.mean(distances))
             if len(distances) == len(rows)
             else None,
@@ -836,6 +1318,8 @@ def compare_population(
 
 def evaluate_command(args: argparse.Namespace) -> int:
     protocol = json.loads(PROTOCOL_PATH.read_text())
+    amendment = load_protocol_amendment(protocol)
+    effective_provenance = amendment_provenance(amendment)
     if args.split == "test":
         bypasses = {
             "allow_incomplete": args.allow_incomplete,
@@ -876,7 +1360,9 @@ def evaluate_command(args: argparse.Namespace) -> int:
         str(row.get("classifier_id")) != expected_classifier for row in labels
     ):
         raise ValueError("labels do not use the protocol-pinned domain classifier")
-    label_audit = validate_label_audit(labels, args.allow_unreviewed_labels)
+    label_audit = validate_label_audit(
+        labels, args.allow_unreviewed_labels, effective_provenance
+    )
 
     config: dict[str, Any] = {}
     development_plan: dict[str, Any] = {}
@@ -886,6 +1372,9 @@ def evaluate_command(args: argparse.Namespace) -> int:
         if args.test_config:
             raise ValueError("use either --development-plan or --test-config, not both")
         development_plan = json.loads(args.development_plan.read_text())
+        validate_amendment_provenance(
+            development_plan, effective_provenance, "development plan"
+        )
         if (
             development_plan.get("protocol_id") != protocol["protocol_id"]
             or development_plan.get("protocol_sha256") != sha256_file(PROTOCOL_PATH)
@@ -896,6 +1385,8 @@ def evaluate_command(args: argparse.Namespace) -> int:
         config = load_test_config(args.test_config, protocol, args.split)
     elif args.split == "test":
         raise ValueError("untouched test evaluation requires --test-config")
+    if args.split == "test":
+        validate_generation_test_config_binding(generations, args.test_config)
     selection = config or development_plan
     selected_domain = selection.get("selected_domain", args.selected_domain)
     selected_feature = selection.get("selected_feature_id", args.selected_feature_id)
@@ -904,6 +1395,13 @@ def evaluate_command(args: argparse.Namespace) -> int:
     )
     if selected_domain not in taxonomy:
         raise ValueError("selected domain is missing or outside the frozen taxonomy")
+    excluded_primary_domains = set(
+        amendment["domain_selection"]["primary_selected_domain_exclusions"]
+    )
+    if selected_domain in excluded_primary_domains:
+        raise ValueError(
+            f"selected domain {selected_domain!r} is excluded from primary selection"
+        )
     if selected_feature is None:
         raise ValueError("selected feature ID is required")
     selected_feature = int(selected_feature)
@@ -927,31 +1425,33 @@ def evaluate_command(args: argparse.Namespace) -> int:
         if row.get("domain_label") not in taxonomy:
             raise ValueError(f"label outside frozen taxonomy: {row.get('domain_label')!r}")
         label_map[key] = row
-    quality_generations = [
-        generation for generation in generations if requires_structural_quality(generation)
-    ]
-    quality_id_mapping: dict[str, tuple[str, str, str, int, int]] = {}
-    for generation in quality_generations:
-        blind_id = quality_blind_id(generation)
-        if blind_id in quality_id_mapping:
-            raise ValueError(f"duplicate blind quality ID {blind_id}")
-        quality_id_mapping[blind_id] = join_key(generation)
+    (
+        quality_generations,
+        reliability_quality_keys,
+        quality_sampling_provenance,
+    ) = select_quality_generations(generations, args.split, protocol)
+    if config:
+        validate_quality_plan_config(config, quality_sampling_provenance)
+    quality_id_mapping = quality_assignment_mapping(
+        quality_generations, reliability_quality_keys
+    )
+    expected_quality_keys = {
+        join_key(generation) for generation in quality_generations
+    }
     quality_map, quality_provenance = load_quality(
         args.quality_labels,
         args.allow_unblinded_quality,
         quality_id_mapping,
         protocol["outcomes"]["quality_guardrail"]["judge_protocol_id"],
         protocol["outcomes"]["quality_guardrail"]["rubric_sha256"],
-        int(protocol["outcomes"]["quality_guardrail"]["ratings_per_generation"]),
+        expected_quality_keys,
+        reliability_quality_keys,
     )
     distance_map, distance_provenance = load_distances(args.distance_metrics)
-    expected_quality_keys = {
-        join_key(generation) for generation in quality_generations
-    }
     expected_metric_keys = {join_key(generation) for generation in generations}
     if args.quality_labels and set(quality_map) != expected_quality_keys:
         raise ValueError(
-            "quality labels must cover baseline and full-strength targeted outputs exactly once"
+            "quality labels must cover the frozen paired quality sample exactly"
         )
     if args.distance_metrics and set(distance_map) != expected_metric_keys:
         raise ValueError("semantic-distance rows do not cover every generation exactly once")
@@ -1247,6 +1747,7 @@ def evaluate_command(args: argparse.Namespace) -> int:
         "protocol_id": protocol["protocol_id"],
         "protocol_revision": protocol.get("protocol_revision"),
         "protocol_sha256": sha256_file(PROTOCOL_PATH),
+        **effective_provenance,
         "split": args.split,
         "selected_domain": selected_domain,
         "selected_feature_id": selected_feature,
@@ -1259,6 +1760,7 @@ def evaluate_command(args: argparse.Namespace) -> int:
         "other_control_population_means_exploratory": control_population_means,
         "quality": {
             **quality_provenance,
+            "sampling": quality_sampling_provenance,
             "noninferiority_margin": quality_margin,
         },
         "semantic_distance": distance_provenance,
@@ -1281,6 +1783,7 @@ def evaluate_command(args: argparse.Namespace) -> int:
         "schema_version": 1,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "protocol_sha256": sha256_file(PROTOCOL_PATH),
+        **effective_provenance,
         "generation_files": [
             {"path": str(path), "sha256": sha256_file(path)} for path in args.generations
         ],
@@ -1433,7 +1936,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     quality_parser.add_argument("--generations", type=Path, nargs="+", required=True)
     quality_parser.add_argument("--output", type=Path, required=True)
-    quality_parser.add_argument("--split", choices=("development", "test"))
+    quality_parser.add_argument(
+        "--split", choices=("development", "test"), required=True
+    )
+    quality_parser.add_argument("--test-config", type=Path)
     quality_parser.add_argument(
         "--prompt-manifest",
         type=Path,

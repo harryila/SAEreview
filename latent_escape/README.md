@@ -3,7 +3,9 @@
 **Status: the 640-output development baseline, prompt-activation capture, and
 pinned independent domain labeling are complete. The blinded manual label audit
 is pending; no feature has been selected, no causal intervention or confirmatory
-test has been run, and no empirical causal result is claimed.**
+test has been run, and no empirical causal result is claimed. Protocol Amendment
+4 was adopted after reviewing only the aggregate baseline report and before the
+manual audit or feature search.**
 
 Research question: do sparse, interpretable domain-attractor features causally
 contribute to Gemma 2 repeatedly choosing familiar analogy domains, and can
@@ -26,9 +28,12 @@ not reused as evidence for this hypothesis.
   Known SCAR target systems and mappings are never included in the generation
   manifest or evaluation.
 - Feature discovery: use development generations to freeze exactly one primary
-  overrepresented-domain/SAE-feature pair. The feature must predict that domain
-  before its first domain-revealing output token and pass the stability checks in
-  [`protocol.json`](protocol.json).
+  overrepresented-domain/SAE-feature pair. `other` remains a reported taxonomy
+  class but is ineligible as the selected primary domain; every other domain
+  still must account for at least 10% of development outputs. The feature must
+  predict that domain before its first domain-revealing output token and pass the
+  stability checks in [`protocol.json`](protocol.json) and
+  [`protocol_amendment_4.json`](protocol_amendment_4.json).
 - Confirmatory controls: baseline, targeted suppression, five matched-random SAE
   features, L2-matched activation noise, a diversity instruction, and a
   higher-temperature baseline. Feature promotion is secondary.
@@ -46,11 +51,15 @@ the selected activation times that feature's decoder vector from the untouched
 residual stream. It does not assume that re-encoding the edited residual makes
 that latent exactly zero or leaves every other encoder coordinate unchanged.
 
-The complete machine-readable specification is [`protocol.json`](protocol.json).
-Choices learned on development—feature ID, matched controls, strength, exact
-judge, and prompt hash—must be written to `test_frozen.json` before any test
-generation. [`test_config.template.json`](test_config.template.json) lists the
-required fields.
+The immutable revision-3 base specification is [`protocol.json`](protocol.json),
+whose SHA-256 remains
+`a9bdeb15de798bc56f888715fbe7bef47b69f1dd06f06dc7322013567ed9297a`.
+The effective development protocol is that base plus the disclosed
+[`protocol_amendment_4.json`](protocol_amendment_4.json). Choices learned on
+development—feature ID, matched controls, strength, exact judge, and prompt
+hash—must be written to `test_frozen.json` before any test generation.
+[`test_config.template.json`](test_config.template.json) binds the base protocol,
+amendment, and labeling-guide hashes in addition to the required learned fields.
 
 ## Real GPU smoke test
 
@@ -87,9 +96,20 @@ byte-identical.
 See [`development_baseline_report.json`](development_baseline_report.json) for
 the frozen commit, artifact hashes, aggregate label counts, and audit status.
 Those labels remain unvalidated until the blinded audit is completed, so this
-baseline is not yet eligible for feature discovery. The preregistration state in
-[`protocol.json`](protocol.json) remains byte-for-byte unchanged; live execution
-state is recorded separately in the run report.
+baseline is not yet eligible for feature discovery.
+
+Amendment 4 leaves [`protocol.json`](protocol.json) byte-for-byte unchanged and
+records its predecessor hash explicitly. At adoption time, the full unaudited
+BART count vector was known, including `other` at 383/640, along with the
+584/640 strict-schema count and 640/640 boundary resolution. The audit was 0/64
+complete; no prompt-level label/activation joins, feature correlations,
+candidate rankings, selection statistics, interventions, or test outputs had
+been examined. Because `other` is a heterogeneous residual rather than a single
+interpretable intervention target, it is excluded only from primary domain
+selection. It remains in labeling coverage, audit summaries, domain rates,
+entropy, and distinct-domain counts. The pre-existing 10% selection threshold is
+unchanged. This is a post-baseline, outcome-informed development amendment, not
+a claim that the exclusion was preregistered.
 
 ## Prepare and verify prompts
 
@@ -104,6 +124,10 @@ downloading anything:
 ```bash
 make latent-protocol
 ```
+
+This also verifies Amendment 4, the exact taxonomy and aggregate knowledge
+snapshot, the domain-labeling guide hash, the quality-sampling arithmetic, and
+the amendment hashes prefilled in `test_config.template.json`.
 
 ## Run the development pipeline
 
@@ -123,9 +147,33 @@ make latent-dev-baseline
 That command generates eight paired-seed outputs per prompt, captures exactly
 one pre-generation SAE vector per prompt (plus nested pre-domain diagnostics),
 labels targets with the pinned independent classifier, and writes a blinded 10%
-manual-audit queue. Fill `manual_domain_label` in the emitted
-`development_baseline.audit.jsonl`, then rerun the labeler with
-`--manual-overrides` before invoking `discover_feature.py`. Discovery blocks
+manual-audit queue. The already-completed revision-3 baseline can be bound to
+Amendment 4 without rerunning BART:
+
+```bash
+python -m latent_escape.label_domains \
+  --generations latent_escape/outputs/development-8ab8781/generations/development_baseline.jsonl \
+  --source-classifier-labels latent_escape/outputs/development-8ab8781/labels/development_baseline.jsonl \
+  --output latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.jsonl \
+  --audit-output latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.jsonl
+```
+
+Give only that new audit queue and
+[`domain_labeling_guide.md`](domain_labeling_guide.md) to the independent rater.
+After all 64 `manual_domain_label` values are filled, create a separate
+adjudicated artifact—never overwrite the frozen BART source:
+
+```bash
+python -m latent_escape.label_domains \
+  --generations latent_escape/outputs/development-8ab8781/generations/development_baseline.jsonl \
+  --source-classifier-labels latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.jsonl \
+  --manual-overrides latent_escape/outputs/development-8ab8781/labels/development_baseline.amendment4.audit.jsonl \
+  --output latent_escape/outputs/development-8ab8781/labels/development_baseline.adjudicated.jsonl \
+  --audit-output latent_escape/outputs/development-8ab8781/labels/development_baseline.adjudicated.audit.jsonl
+```
+
+The import rejects guide/hash drift, exposed classifier fields, changed blinded
+text, incomplete queues, and any non-frozen audit membership. Discovery blocks
 unless the audit gate, prompt-level cross-validation, 1,000-permutation global
 maximum-statistic correction, prompt bootstrap, matched controls, and the 4/5
 semantic review all pass. The discovery artifact supplies the frozen activation
@@ -145,6 +193,16 @@ The remaining CLIs are intentionally separate at the manual checkpoints:
 - `evaluate.py run` reports clustered bootstrap results for the full population
   first and the development-frozen eligible-prompt population second.
 
+Structural quality uses one hash-selected paired sample index per prompt, shared
+between baseline and full-strength targeted suppression. The pair-selection seed
+is `latent-escape-quality-pair-v1`. Only the primary rater score enters the
+quality endpoint. Prompts selected by
+`latent-escape-quality-reliability-v1` receive an additional independent rating
+for both arms solely to estimate reliability: `ceil(10% * prompts)` gives three
+development-gate prompts and 12 test prompts. The resulting workloads are 48
+unique plus six duplicate ratings (54 tasks) for the 24-prompt development gate,
+and 240 unique plus 24 duplicate ratings (264 tasks) for the 120-prompt test.
+
 For the intervention gate, pass the completed discovery artifact to every
 generation as `--development-plan`; this automatically selects the exact 24
 prompts, four samples, feature, and five controls. Generate suppression doses
@@ -161,7 +219,8 @@ Copy `test_config.template.json` to ignored `test_frozen.json` only after the
 development gate passes. Test commands require that completed file, the exact
 clean code commit and lockfile hashes, every test prompt, and an explicit
 `--confirm-test`. The frozen config must point to the passing gate report and
-its hash. An ignored append-only arm ledger prevents rerunning a confirmatory
+its hash, and it must retain the prefilled base-protocol, amendment, and labeling
+guide hashes. An ignored append-only arm ledger prevents rerunning a confirmatory
 arm under a second output path, and test outputs cannot be overwritten through
 the CLI.
 

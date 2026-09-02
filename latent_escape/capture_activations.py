@@ -59,6 +59,11 @@ except ImportError:  # Support ``python latent_escape/capture_activations.py``.
         _validate_test_freeze,
     )
 
+try:
+    from .protocol_amendment import amendment_sha256, load_protocol_amendment
+except ImportError:  # pragma: no cover - direct script invocation
+    from protocol_amendment import amendment_sha256, load_protocol_amendment
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GENERATIONS = (
@@ -82,6 +87,10 @@ def _atomic_write_npz(
     decoder_norms: np.ndarray,
     protocol_id: str,
     protocol_sha256: str,
+    effective_protocol_revision: int,
+    protocol_amendment_id: str,
+    protocol_amendment_sha256: str,
+    domain_labeling_guide_sha256: str,
     manifest_sha256: str,
     capture_run_id: str,
     split: str,
@@ -101,6 +110,16 @@ def _atomic_write_npz(
             decoder_norms=np.asarray(decoder_norms, dtype=np.float32),
             protocol_id=np.asarray(protocol_id, dtype=np.str_),
             protocol_sha256=np.asarray(protocol_sha256, dtype=np.str_),
+            effective_protocol_revision=np.asarray(
+                effective_protocol_revision, dtype=np.int64
+            ),
+            protocol_amendment_id=np.asarray(protocol_amendment_id, dtype=np.str_),
+            protocol_amendment_sha256=np.asarray(
+                protocol_amendment_sha256, dtype=np.str_
+            ),
+            domain_labeling_guide_sha256=np.asarray(
+                domain_labeling_guide_sha256, dtype=np.str_
+            ),
             manifest_sha256=np.asarray(manifest_sha256, dtype=np.str_),
             capture_run_id=np.asarray(capture_run_id, dtype=np.str_),
             splits=np.asarray([split] * len(prompt_ids), dtype=np.str_),
@@ -549,6 +568,8 @@ def main() -> int:
         args.resume = False
 
     protocol = read_json(args.protocol)
+    amendment = load_protocol_amendment(protocol)
+    guide = amendment["domain_labeling_guide"]
     manifest, manifest_hash = _manifest_by_id(args.manifest, protocol, args.split)
     if args.split == "test":
         if args.protocol.resolve() != DEFAULT_PROTOCOL.resolve():
@@ -566,6 +587,15 @@ def main() -> int:
         condition=args.condition,
         allow_dry_run=args.dry_run,
     )
+    generation_rows = [row for rows in grouped.values() for row in rows]
+    generation_amendment_bound = all(
+        row.get("protocol_amendment_id") == amendment["amendment_id"]
+        and row.get("protocol_amendment_sha256") == amendment_sha256()
+        and row.get("domain_labeling_guide_sha256") == guide["sha256"]
+        for row in generation_rows
+    )
+    if args.split == "test" and not generation_amendment_bound:
+        raise ValueError("test generations do not bind the frozen protocol amendment")
     unknown = set(grouped) - set(manifest)
     if unknown:
         raise ValueError(f"Generation input has unknown prompt IDs: {sorted(unknown)}")
@@ -592,9 +622,15 @@ def main() -> int:
         "schema_version": 1,
         "protocol_id": protocol["protocol_id"],
         "protocol_sha256": protocol_sha256,
+        "effective_protocol_revision": amendment["effective_protocol_revision"],
+        "protocol_amendment_id": amendment["amendment_id"],
+        "protocol_amendment_sha256": amendment_sha256(),
+        "domain_labeling_guide_id": guide["id"],
+        "domain_labeling_guide_sha256": guide["sha256"],
         "manifest_sha256": manifest_hash,
         "generation_sha256": generation_sha256,
         "generation_run_id": generation_run_id,
+        "source_generation_amendment_bound": generation_amendment_bound,
         "split": args.split,
         "condition": args.condition,
         "prompt_ids": prompt_ids,
@@ -749,6 +785,12 @@ def main() -> int:
                 "schema_version": 1,
                 "record_type": "prompt_activation_bundle",
                 "protocol_id": protocol["protocol_id"],
+                "effective_protocol_revision": amendment[
+                    "effective_protocol_revision"
+                ],
+                "protocol_amendment_id": amendment["amendment_id"],
+                "protocol_amendment_sha256": amendment_sha256(),
+                "domain_labeling_guide_sha256": guide["sha256"],
                 "capture_run_id": capture_run_id,
                 "generation_run_id": generation_run_id,
                 "prompt_id": prompt_id,
@@ -776,6 +818,10 @@ def main() -> int:
             decoder_norms=decoder_norms,
             protocol_id=protocol["protocol_id"],
             protocol_sha256=protocol_sha256,
+            effective_protocol_revision=amendment["effective_protocol_revision"],
+            protocol_amendment_id=amendment["amendment_id"],
+            protocol_amendment_sha256=amendment_sha256(),
+            domain_labeling_guide_sha256=guide["sha256"],
             manifest_sha256=manifest_hash,
             capture_run_id=capture_run_id,
             split=args.split,

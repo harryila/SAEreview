@@ -22,6 +22,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+try:  # Support both ``python -m latent_escape...`` and direct script execution.
+    from .protocol_amendment import (
+        DEVELOPMENT_REPORT_PATH,
+        amendment_sha256,
+        load_protocol_amendment,
+    )
+except ImportError:  # pragma: no cover - exercised by CLI invocation
+    from protocol_amendment import (  # type: ignore
+        DEVELOPMENT_REPORT_PATH,
+        amendment_sha256,
+        load_protocol_amendment,
+    )
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL_PATH = ROOT / "latent_escape" / "protocol.json"
@@ -29,12 +42,51 @@ CLASSIFIER_REPO = "facebook/bart-large-mnli"
 CLASSIFIER_REVISION = "d7645e127eaf1aefc7862fd59a17a5aa8558b8ce"
 HYPOTHESIS_TEMPLATE = "This analogy's target domain is {}."
 AUDIT_SEED = "latent-escape-domain-audit-v1"
+AUDIT_PROVENANCE_FIELDS = (
+    "protocol_amendment_id",
+    "protocol_amendment_sha256",
+    "domain_labeling_guide_id",
+    "domain_labeling_guide_sha256",
+)
+FORBIDDEN_MANUAL_AUDIT_FIELDS = {
+    "assigned_domain",
+    "classifier_domain_label",
+    "condition",
+    "domain_label",
+    "feature_id",
+    "primary_domain_label",
+    "prompt_id",
+    "run_id",
+    "sample_index",
+    "seed",
+    "split",
+}
 SELF_LABEL_KEYS = {
     "targetdomain",
     "domainlabel",
     "assigneddomain",
     "predicteddomain",
 }
+
+
+def audit_provenance(
+    protocol: dict[str, Any], amendment: dict[str, Any] | None = None
+) -> dict[str, str]:
+    """Return the frozen identifiers every audit artifact must carry."""
+    amendment = amendment or load_protocol_amendment(protocol)
+    guide = amendment.get("domain_labeling_guide")
+    if not isinstance(guide, dict):
+        raise ValueError("protocol amendment lacks domain_labeling_guide")
+    values = {
+        "protocol_amendment_id": amendment.get("amendment_id"),
+        "protocol_amendment_sha256": amendment_sha256(),
+        "domain_labeling_guide_id": guide.get("id"),
+        "domain_labeling_guide_sha256": guide.get("sha256"),
+    }
+    missing = [name for name, value in values.items() if not isinstance(value, str) or not value]
+    if missing:
+        raise ValueError(f"protocol amendment lacks audit provenance fields: {missing}")
+    return {name: str(value) for name, value in values.items()}
 
 
 def sha256_bytes(payload: bytes) -> str:
@@ -275,12 +327,15 @@ def hf_zero_shot_labels(
     return [(str(item["labels"][0]), float(item["scores"][0])) for item in outputs]
 
 
-def load_label_import(path: Path, taxonomy: list[str]) -> dict[str, tuple[str, float | None]]:
+def read_label_import(path: Path) -> list[dict[str, Any]]:
     if path.suffix.casefold() == ".csv":
         with path.open(newline="") as handle:
-            rows = list(csv.DictReader(handle))
-    else:
-        rows = read_jsonl(path)
+            return list(csv.DictReader(handle))
+    return read_jsonl(path)
+
+
+def load_label_import(path: Path, taxonomy: list[str]) -> dict[str, tuple[str, float | None]]:
+    rows = read_label_import(path)
     canonical_domains = {domain.casefold(): domain for domain in taxonomy}
     imported: dict[str, tuple[str, float | None]] = {}
     for row in rows:
@@ -305,6 +360,67 @@ def load_label_import(path: Path, taxonomy: list[str]) -> dict[str, tuple[str, f
         if blind_id in imported:
             raise ValueError(f"{path}: duplicate blind_id {blind_id}")
         confidence = row.get("confidence", row.get("classifier_confidence"))
+        imported[blind_id] = (
+            canonical_domains[str(raw_domain).casefold()],
+            None if confidence in (None, "") else float(confidence),
+        )
+    return imported
+
+
+def load_manual_audit_import(
+    path: Path,
+    taxonomy: list[str],
+    expected_provenance: dict[str, str],
+    expected_text_hashes: dict[str, str] | None = None,
+) -> dict[str, tuple[str, float | None]]:
+    """Load a completed audit queue and fail closed on guide/amendment drift."""
+    rows = read_label_import(path)
+    canonical_domains = {domain.casefold(): domain for domain in taxonomy}
+    imported: dict[str, tuple[str, float | None]] = {}
+    for row_number, row in enumerate(rows, start=1):
+        blind_id = str(row.get("blind_id", "")).strip()
+        if not blind_id:
+            raise ValueError(f"{path}:{row_number}: manual audit row lacks blind_id")
+        exposed = sorted(
+            field
+            for field in FORBIDDEN_MANUAL_AUDIT_FIELDS
+            if row.get(field) not in (None, "")
+        )
+        if exposed:
+            raise ValueError(
+                f"{path}:{row_number}: blinded manual audit exposes forbidden fields: "
+                f"{exposed}"
+            )
+        for field, expected in expected_provenance.items():
+            if str(row.get(field, "")) != expected:
+                raise ValueError(
+                    f"{path}:{row_number}: {field} does not bind the frozen "
+                    "labeling guide/protocol amendment"
+                )
+        if expected_text_hashes is not None:
+            expected_text_hash = expected_text_hashes.get(blind_id)
+            if expected_text_hash is None:
+                raise ValueError(f"{path}:{row_number}: unknown blind_id {blind_id}")
+            if row.get("analogy_text_sha256") != expected_text_hash:
+                raise ValueError(
+                    f"{path}:{row_number}: analogy text hash differs from frozen queue"
+                )
+            audit_text = row.get("analogy_text")
+            if not isinstance(audit_text, str) or sha256_bytes(
+                audit_text.encode("utf-8")
+            ) != expected_text_hash:
+                raise ValueError(
+                    f"{path}:{row_number}: audited analogy text was altered or omitted"
+                )
+        raw_domain = row.get("manual_domain_label")
+        if raw_domain is None or str(raw_domain).casefold() not in canonical_domains:
+            raise ValueError(
+                f"{path}:{row_number}: invalid manual_domain_label for {blind_id}: "
+                f"{raw_domain!r}"
+            )
+        if blind_id in imported:
+            raise ValueError(f"{path}:{row_number}: duplicate blind_id {blind_id}")
+        confidence = row.get("manual_label_confidence")
         imported[blind_id] = (
             canonical_domains[str(raw_domain).casefold()],
             None if confidence in (None, "") else float(confidence),
@@ -346,6 +462,173 @@ def stratified_audit_ids(
     return chosen
 
 
+def load_frozen_classifier_artifact(
+    path: Path,
+    blinded: list[dict[str, Any]],
+    mapping: dict[str, tuple[str, str, int, int]],
+    taxonomy: list[str],
+    protocol: dict[str, Any],
+    expected_provenance: dict[str, str],
+    audit_fraction: float,
+    audit_seed: str,
+) -> tuple[dict[str, tuple[str, float | None]], dict[str, Any]]:
+    """Validate and reuse the immutable pre-adjudication BART label artifact."""
+    rows = read_jsonl(path)
+    source_hash = sha256_file(path)
+    development_report = json.loads(DEVELOPMENT_REPORT_PATH.read_text())
+    legacy_snapshot_hash = str(
+        development_report.get("artifact_sha256", {}).get("independent_labels", "")
+    )
+    legacy_snapshot_authorized = bool(
+        legacy_snapshot_hash and source_hash == legacy_snapshot_hash
+    )
+    expected_classifier_id = f"{CLASSIFIER_REPO}@{CLASSIFIER_REVISION}"
+    taxonomy_set = set(taxonomy)
+    blind_by_id = {row["blind_id"]: row for row in blinded}
+    source_by_blind: dict[str, dict[str, Any]] = {}
+    for row_number, row in enumerate(rows, start=1):
+        blind_id = str(row.get("blind_id", ""))
+        if not blind_id or blind_id in source_by_blind:
+            raise ValueError(f"{path}:{row_number}: missing or duplicate blind_id")
+        if blind_id not in mapping:
+            raise ValueError(f"{path}:{row_number}: unknown blind_id {blind_id}")
+        if record_key(row) != mapping[blind_id]:
+            raise ValueError(f"{path}:{row_number}: generation key differs from frozen input")
+        if row.get("analogy_text_sha256") != blind_by_id[blind_id]["analogy_text_sha256"]:
+            raise ValueError(f"{path}:{row_number}: blinded text hash differs")
+        classifier_domain = row.get("classifier_domain_label")
+        if classifier_domain not in taxonomy_set:
+            raise ValueError(f"{path}:{row_number}: classifier label is outside taxonomy")
+        if row.get("domain_label") != classifier_domain:
+            raise ValueError(
+                f"{path}:{row_number}: source classifier artifact is already adjudicated"
+            )
+        if row.get("manual_audited") is not False or row.get("manual_override") is not False:
+            raise ValueError(
+                f"{path}:{row_number}: source classifier artifact contains manual labels"
+            )
+        if row.get("primary_eligible") is not True:
+            raise ValueError(f"{path}:{row_number}: source classifier artifact is ineligible")
+        if row.get("classifier_id") != expected_classifier_id:
+            raise ValueError(f"{path}:{row_number}: source classifier is not pinned BART")
+        if row.get("protocol_id") != protocol["protocol_id"]:
+            raise ValueError(f"{path}:{row_number}: protocol ID differs")
+        if row.get("protocol_revision") != protocol.get("protocol_revision"):
+            raise ValueError(f"{path}:{row_number}: base protocol revision differs")
+        observed_provenance = {
+            field: str(row.get(field, "")) for field in expected_provenance
+        }
+        provenance_matches = all(
+            observed_provenance[field] == expected
+            for field, expected in expected_provenance.items()
+        )
+        provenance_absent = all(not value for value in observed_provenance.values())
+        if not provenance_matches and not (
+            legacy_snapshot_authorized and provenance_absent
+        ):
+            raise ValueError(
+                f"{path}:{row_number}: guide/amendment provenance differs and the "
+                "artifact is not the pre-amendment snapshot"
+            )
+        if not math.isclose(
+            float(row.get("audit_fraction", -1.0)),
+            audit_fraction,
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        ) or row.get("audit_seed") != audit_seed:
+            raise ValueError(f"{path}:{row_number}: frozen audit settings differ")
+        source_by_blind[blind_id] = row
+
+    missing = set(mapping) - set(source_by_blind)
+    if missing:
+        raise ValueError(f"source classifier artifact is missing {len(missing)} blind IDs")
+    classifier_view = [
+        {
+            "blind_id": blind_id,
+            "domain_label": row["classifier_domain_label"],
+        }
+        for blind_id, row in source_by_blind.items()
+    ]
+    expected_audit_ids = stratified_audit_ids(
+        classifier_view, audit_fraction, audit_seed
+    )
+    observed_audit_ids = {
+        blind_id
+        for blind_id, row in source_by_blind.items()
+        if row.get("audit_selected") is True
+    }
+    if observed_audit_ids != expected_audit_ids:
+        raise ValueError("source classifier artifact has a non-frozen audit selection")
+
+    meta_path = path.with_name(path.name + ".meta.json")
+    if not meta_path.exists():
+        raise ValueError(f"source classifier metadata is missing: {meta_path}")
+    metadata = json.loads(meta_path.read_text())
+    if metadata.get("label_sha256") != source_hash:
+        raise ValueError("source classifier metadata does not authenticate its label file")
+    if metadata.get("classifier_id") != expected_classifier_id:
+        raise ValueError("source classifier metadata does not identify pinned BART")
+    if metadata.get("classifier_revision") != CLASSIFIER_REVISION:
+        raise ValueError("source classifier metadata revision differs from pinned BART")
+    if metadata.get("classifier_backend") != "hf-zero-shot":
+        raise ValueError("source classifier metadata backend is not pinned BART")
+    if metadata.get("primary_eligible") is not True:
+        raise ValueError("source classifier metadata marks labels ineligible")
+    if int(metadata.get("manual_override_count", -1)) != 0:
+        raise ValueError("source classifier metadata is not pre-adjudication")
+    if metadata.get("protocol_id") != protocol["protocol_id"] or metadata.get(
+        "protocol_revision"
+    ) != protocol.get("protocol_revision"):
+        raise ValueError("source classifier metadata base protocol differs")
+    if metadata.get("protocol_sha256") != sha256_file(PROTOCOL_PATH):
+        raise ValueError("source classifier metadata base protocol hash differs")
+    if not math.isclose(
+        float(metadata.get("audit_fraction", -1.0)),
+        audit_fraction,
+        rel_tol=0.0,
+        abs_tol=1e-12,
+    ) or metadata.get("audit_seed") != audit_seed:
+        raise ValueError("source classifier metadata audit settings differ")
+    if int(metadata.get("label_count", -1)) != len(rows):
+        raise ValueError("source classifier metadata label count differs")
+    if metadata.get("self_reported_target_domain_used") is not False:
+        raise ValueError("source classifier metadata self-label policy differs")
+    metadata_provenance = {
+        field: str(metadata.get(field, "")) for field in expected_provenance
+    }
+    metadata_matches = all(
+        metadata_provenance[field] == expected
+        for field, expected in expected_provenance.items()
+    )
+    metadata_absent = all(not value for value in metadata_provenance.values())
+    if not metadata_matches and not (
+        legacy_snapshot_authorized and metadata_absent
+    ):
+        raise ValueError("source classifier metadata guide/amendment provenance differs")
+
+    predictions = {
+        blind_id: (
+            str(row["classifier_domain_label"]),
+            None
+            if row.get("classifier_confidence") is None
+            else float(row["classifier_confidence"]),
+        )
+        for blind_id, row in source_by_blind.items()
+    }
+    source = {
+        "path": str(path),
+        "sha256": source_hash,
+        "metadata_path": str(meta_path),
+        "metadata_sha256": sha256_file(meta_path),
+        "provenance_mode": (
+            "pre_amendment_snapshot_authenticated_by_development_report"
+            if legacy_snapshot_authorized and metadata_absent
+            else "amendment_bound"
+        ),
+    }
+    return predictions, source
+
+
 def default_sibling(output: Path, suffix: str) -> Path:
     stem = output.name[:-6] if output.name.endswith(".jsonl") else output.stem
     return output.with_name(f"{stem}.{suffix}.jsonl")
@@ -363,6 +646,14 @@ def main() -> int:
     )
     parser.add_argument("--external-labels", type=Path)
     parser.add_argument("--manual-overrides", type=Path)
+    parser.add_argument(
+        "--source-classifier-labels",
+        type=Path,
+        help=(
+            "immutable pre-adjudication BART label JSONL; required with "
+            "--manual-overrides so adjudication never regenerates or overwrites it"
+        ),
+    )
     parser.add_argument("--external-classifier-id", default="external-blinded-classifier")
     parser.add_argument("--blind-output", type=Path)
     parser.add_argument("--audit-output", type=Path)
@@ -373,6 +664,15 @@ def main() -> int:
     parser.add_argument("--local-files-only", action="store_true")
     args = parser.parse_args()
 
+    if args.manual_overrides and not args.source_classifier_labels:
+        parser.error("--manual-overrides requires --source-classifier-labels")
+    if args.source_classifier_labels and args.backend != "hf-zero-shot":
+        parser.error("adjudication requires --backend hf-zero-shot")
+    if args.source_classifier_labels and (
+        args.output.resolve() == args.source_classifier_labels.resolve()
+    ):
+        parser.error("--output must not overwrite --source-classifier-labels")
+
     if args.backend == "hf-zero-shot" and (
         not math.isclose(args.audit_fraction, 0.10, rel_tol=0.0, abs_tol=1e-12)
         or args.audit_seed != AUDIT_SEED
@@ -382,6 +682,8 @@ def main() -> int:
         )
 
     protocol = json.loads(PROTOCOL_PATH.read_text())
+    amendment = load_protocol_amendment(protocol)
+    provenance = audit_provenance(protocol, amendment)
     taxonomy = list(protocol["target_domain_taxonomy"])
     if "other" not in taxonomy:
         raise ValueError("frozen taxonomy must contain 'other'")
@@ -392,12 +694,48 @@ def main() -> int:
 
     blinded, mapping = blind_records(generations)
     blind_output = args.blind_output or default_sibling(args.output, "blinded")
+    audit_output = args.audit_output or default_sibling(args.output, "audit")
+    if args.source_classifier_labels:
+        protected = {
+            args.source_classifier_labels.resolve(),
+            args.source_classifier_labels.with_name(
+                args.source_classifier_labels.name + ".meta.json"
+            ).resolve(),
+        }
+        if args.manual_overrides:
+            protected.add(args.manual_overrides.resolve())
+        output_targets = {
+            args.output.resolve(),
+            args.output.with_name(args.output.name + ".meta.json").resolve(),
+            blind_output.resolve(),
+            audit_output.resolve(),
+            audit_output.with_name(audit_output.name + ".meta.json").resolve(),
+        }
+        collisions = sorted(str(path) for path in protected & output_targets)
+        if collisions:
+            raise ValueError(
+                f"output paths would overwrite frozen inputs: {collisions}"
+            )
     blind_payload = jsonl_payload(blinded)
-    atomic_write(blind_output, blind_payload)
 
     classifier_id: str
     primary_eligible: bool
-    if args.backend == "hf-zero-shot":
+    frozen_classifier_source: dict[str, Any] | None = None
+    if args.source_classifier_labels:
+        prediction_map, frozen_classifier_source = load_frozen_classifier_artifact(
+            args.source_classifier_labels,
+            blinded,
+            mapping,
+            taxonomy,
+            protocol,
+            provenance,
+            args.audit_fraction,
+            args.audit_seed,
+        )
+        predictions = [prediction_map[row["blind_id"]] for row in blinded]
+        classifier_id = f"{CLASSIFIER_REPO}@{CLASSIFIER_REVISION}"
+        primary_eligible = True
+    elif args.backend == "hf-zero-shot":
         predictions = hf_zero_shot_labels(
             blinded, taxonomy, args.device, args.batch_size, args.local_files_only
         )
@@ -426,7 +764,15 @@ def main() -> int:
     }
     overrides: dict[str, tuple[str, float | None]] = {}
     if args.manual_overrides:
-        overrides = load_label_import(args.manual_overrides, taxonomy)
+        expected_text_hashes = {
+            row["blind_id"]: row["analogy_text_sha256"] for row in blinded
+        }
+        overrides = load_manual_audit_import(
+            args.manual_overrides,
+            taxonomy,
+            provenance,
+            expected_text_hashes,
+        )
         unknown = sorted(set(overrides) - set(mapping))
         if unknown:
             raise ValueError(f"manual overrides contain {len(unknown)} unknown blind IDs")
@@ -447,6 +793,9 @@ def main() -> int:
                 "record_type": "independent_domain_label",
                 "protocol_id": protocol["protocol_id"],
                 "protocol_revision": protocol.get("protocol_revision"),
+                "effective_protocol_revision": amendment[
+                    "effective_protocol_revision"
+                ],
                 "run_id": source.get("run_id"),
                 "prompt_id": key[0],
                 "split": source.get("split"),
@@ -463,6 +812,7 @@ def main() -> int:
                 "manual_override": blind_id in overrides and domain != classifier_domain,
                 "manual_label_confidence": confidence if blind_id in overrides else None,
                 "primary_eligible": primary_eligible,
+                **provenance,
             }
         )
     labels.sort(key=lambda row: (row["prompt_id"], row["condition"], row["sample_index"], row["seed"]))
@@ -491,6 +841,10 @@ def main() -> int:
         {
             "schema_version": 1,
             "record_type": "blinded_domain_audit",
+            "protocol_id": protocol["protocol_id"],
+            "effective_protocol_revision": amendment[
+                "effective_protocol_revision"
+            ],
             "blind_id": row["blind_id"],
             "analogy_text": blind_by_id[row["blind_id"]]["analogy_text"],
             "analogy_text_sha256": row["analogy_text_sha256"],
@@ -499,15 +853,16 @@ def main() -> int:
             "manual_domain_label": row["domain_label"]
             if row["blind_id"] in overrides
             else None,
+            **provenance,
         }
         for row in labels
         if row["blind_id"] in audit_ids
     ]
     audit_rows.sort(key=lambda row: row["blind_id"])
-    audit_output = args.audit_output or default_sibling(args.output, "audit")
 
     label_payload = jsonl_payload(labels)
     audit_payload = jsonl_payload(audit_rows)
+    atomic_write(blind_output, blind_payload)
     atomic_write(args.output, label_payload)
     atomic_write(audit_output, audit_payload)
     metadata = {
@@ -516,7 +871,9 @@ def main() -> int:
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "protocol_id": protocol["protocol_id"],
         "protocol_revision": protocol.get("protocol_revision"),
+        "effective_protocol_revision": amendment["effective_protocol_revision"],
         "protocol_sha256": sha256_file(PROTOCOL_PATH),
+        **provenance,
         "generation_path": str(args.generations),
         "generation_sha256": sha256_file(args.generations),
         "label_sha256": sha256_bytes(label_payload),
@@ -525,12 +882,27 @@ def main() -> int:
         "audit_output_path": str(audit_output),
         "audit_output_sha256": sha256_bytes(audit_payload),
         "classifier_backend": args.backend,
+        "classification_mode": (
+            "adjudication_from_frozen_classifier_artifact"
+            if frozen_classifier_source and overrides
+            else "provenance_binding_from_frozen_classifier_artifact"
+            if frozen_classifier_source
+            else "fresh_blinded_classification"
+        ),
         "classifier_id": classifier_id,
         "classifier_revision": CLASSIFIER_REVISION if args.backend == "hf-zero-shot" else None,
         "hypothesis_template": HYPOTHESIS_TEMPLATE if args.backend == "hf-zero-shot" else None,
         "primary_eligible": primary_eligible,
         "self_reported_target_domain_used": False,
         "manual_override_count": len(overrides),
+        "manual_audit_completed": bool(overrides),
+        "manual_audit_import_path": str(args.manual_overrides)
+        if args.manual_overrides
+        else None,
+        "manual_audit_import_sha256": sha256_file(args.manual_overrides)
+        if args.manual_overrides
+        else None,
+        "frozen_classifier_source": frozen_classifier_source,
         "label_count": len(labels),
         "domain_counts": dict(sorted(Counter(row["domain_label"] for row in labels).items())),
         "audit_fraction": args.audit_fraction,

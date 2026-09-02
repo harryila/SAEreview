@@ -1,5 +1,13 @@
 {
   "protocol_id": "latent-escape-mvp-v1",
+  "effective_protocol_revision": 4,
+  "base_protocol_sha256": "a9bdeb15de798bc56f888715fbe7bef47b69f1dd06f06dc7322013567ed9297a",
+  "protocol_amendment_id": "latent-escape-protocol-amendment-4",
+  "protocol_amendment_sha256": "4230be77caf8f2292362a654b2289f1be7531e87cfc48a18f6e79e327e365d46",
+  "domain_labeling_guide_id": "latent-escape-domain-labeling-v1",
+  "domain_labeling_guide_sha256": "40b191c7a9b1d24a1a9fc41583bf243f32e1f2c50f1ca711cb25e353814a5f4c",
+  "quality_sampling_plan_sha256": "4da0e27a2cb67f3942710799bf1db8e295229163a509b2c6c9c7a7c0d9882c99",
+  "quality_reliability_subset_sha256": "0f96b4038f81e40487acf9fd8b83e7cb9ca6e8a6678c9504b67b88dca549b677",
   "frozen_at_utc": null,
   "selected_domain": null,
   "selected_feature_id": null,

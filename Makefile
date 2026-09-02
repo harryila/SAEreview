@@ -23,7 +23,6 @@ latent-dry-run: latent-protocol
 	uv run python -m latent_escape.generate --dry-run --limit-prompts 2 --overwrite
 	uv run python -m latent_escape.capture_activations --dry-run --limit-prompts 2 --overwrite --generations latent_escape/outputs/generations/development_baseline.dry-run.jsonl
 	uv run python -m latent_escape.label_domains --generations latent_escape/outputs/generations/development_baseline.dry-run.jsonl --output latent_escape/outputs/labels/development_baseline.dry-run.jsonl --backend heuristic
-	uv run python -m latent_escape.evaluate prepare-quality --generations latent_escape/outputs/generations/development_baseline.dry-run.jsonl --output latent_escape/outputs/quality/development_baseline.dry-run.jsonl --split development
 
 latent-dev-baseline: latent-protocol
 	uv run python -m latent_escape.generate --split development --condition baseline

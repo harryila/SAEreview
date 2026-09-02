@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "amendment_id": "latent-escape-protocol-amendment-4",
+  "protocol_id": "latent-escape-mvp-v1",
+  "effective_protocol_revision": 4,
+  "adopted_at": "2026-09-01",
+  "status": "adopted_before_manual_audit_and_feature_discovery",
+  "base_protocol": {
+    "revision": 3,
+    "sha256": "a9bdeb15de798bc56f888715fbe7bef47b69f1dd06f06dc7322013567ed9297a",
+    "pre_amendment_commit": "ea4368347a79b6ed11bc9f71df2c8debd4529d93"
+  },
+  "knowledge_snapshot": {
+    "source_report": {
+      "path": "latent_escape/development_baseline_report.json",
+      "sha256": "60c862e95cf1b5003e84cdda063e030d7151304761b08bf69d7e47bca0b53258"
+    },
+    "aggregate_information_known": {
+      "prompt_count": 80,
+      "samples_per_prompt": 8,
+      "generation_count": 640,
+      "schema_valid_count": 584,
+      "classifier_id": "facebook/bart-large-mnli@d7645e127eaf1aefc7862fd59a17a5aa8558b8ce",
+      "classifier_domain_counts_before_manual_audit": {
+        "biology/ecology": 70,
+        "medicine/public health": 3,
+        "physics": 2,
+        "chemistry/materials": 21,
+        "engineering/control": 5,
+        "computer science/software": 60,
+        "AI/neural networks": 0,
+        "economics/markets": 11,
+        "organizations/governance": 5,
+        "sociology/culture": 1,
+        "psychology/cognition": 1,
+        "education/learning": 17,
+        "law/policy": 7,
+        "history": 18,
+        "arts/literature": 15,
+        "sports/games": 7,
+        "geography/earth/environment": 11,
+        "everyday/household": 3,
+        "other": 383
+      },
+      "manual_audit": {
+        "queued_count": 64,
+        "completed_count": 0,
+        "status": "pending"
+      },
+      "pre_domain_boundary": {
+        "resolved_count": 640,
+        "total_count": 640,
+        "resolution_rate": 1.0
+      },
+      "test_split_touched": false
+    },
+    "not_examined_or_computed_before_adoption": [
+      "manual domain-audit judgments",
+      "prompt-level joins between domain labels and SAE activations",
+      "feature-domain correlations or candidate rankings",
+      "permutation, cross-validation, or bootstrap feature-selection results",
+      "semantic feature-interpretation review",
+      "development intervention outputs",
+      "test generations, labels, activations, or outcomes"
+    ]
+  },
+  "domain_selection": {
+    "minimum_development_output_rate": 0.1,
+    "primary_selected_domain_exclusions": [
+      "other"
+    ],
+    "taxonomy_source": "base_protocol.target_domain_taxonomy",
+    "coverage_and_diversity_policy": "All 19 frozen taxonomy classes, including other, remain in labeling coverage, audit summaries, domain-output-rate reporting, entropy, and distinct-domain counts. The exclusion applies only to primary feature/domain selection.",
+    "rationale": "The aggregate unaudited classifier counts were known, including other at 383 of 640 outputs. Other is a heterogeneous residual rather than a single interpretable causal target, so it cannot be selected as the primary domain. The pre-existing 10 percent minimum output-rate threshold is unchanged for every non-excluded domain."
+  },
+  "domain_labeling_guide": {
+    "id": "latent-escape-domain-labeling-v1",
+    "path": "latent_escape/domain_labeling_guide.md",
+    "sha256": "40b191c7a9b1d24a1a9fc41583bf243f32e1f2c50f1ca711cb25e353814a5f4c"
+  },
+  "quality_guardrail_sampling": {
+    "pair_selection_seed": "latent-escape-quality-pair-v1",
+    "reliability_selection_seed": "latent-escape-quality-reliability-v1",
+    "samples_per_prompt": 1,
+    "reliability_prompt_fraction": 0.1,
+    "required_arms": [
+      "baseline",
+      "targeted_feature_suppression"
+    ],
+    "primary_rater_estimand": "Exactly one hash-selected paired sample index per prompt is rated in both required arms. Only the primary rater's score for each generation enters the structural-quality endpoint.",
+    "duplicate_rater_use": "Both required-arm tasks for each hash-selected reliability prompt receive one additional independent rating. Duplicate ratings are used only for inter-rater reliability and never replace, average with, or otherwise enter the primary endpoint.",
+    "expected_workload": {
+      "development_gate": {
+        "prompt_count": 24,
+        "unique_generation_ratings": 48,
+        "reliability_prompt_count": 3,
+        "duplicate_ratings": 6,
+        "total_rating_tasks": 54
+      },
+      "test": {
+        "prompt_count": 120,
+        "unique_generation_ratings": 240,
+        "reliability_prompt_count": 12,
+        "duplicate_ratings": 24,
+        "total_rating_tasks": 264
+      }
+    }
+  }
+}

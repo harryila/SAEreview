@@ -22,10 +22,39 @@ from typing import Any, Iterable
 import numpy as np
 from sklearn.model_selection import KFold
 
+try:  # Support both module and direct-script execution.
+    from .protocol_amendment import amendment_sha256, load_protocol_amendment
+except ImportError:  # pragma: no cover - exercised by CLI invocation
+    from protocol_amendment import amendment_sha256, load_protocol_amendment
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL_PATH = ROOT / "latent_escape" / "protocol.json"
 MANIFEST_PATH = ROOT / "latent_escape" / "artifacts" / "prompt_manifest.jsonl"
+AUDIT_PROVENANCE_FIELDS = (
+    "protocol_amendment_id",
+    "protocol_amendment_sha256",
+    "domain_labeling_guide_id",
+    "domain_labeling_guide_sha256",
+)
+
+
+def audit_provenance(
+    amendment: dict[str, Any], amendment_hash: str
+) -> dict[str, str]:
+    guide = amendment.get("domain_labeling_guide")
+    if not isinstance(guide, dict):
+        raise ValueError("protocol amendment lacks domain_labeling_guide")
+    values = {
+        "protocol_amendment_id": amendment.get("amendment_id"),
+        "protocol_amendment_sha256": amendment_hash,
+        "domain_labeling_guide_id": guide.get("id"),
+        "domain_labeling_guide_sha256": guide.get("sha256"),
+    }
+    missing = [name for name, value in values.items() if not isinstance(value, str) or not value]
+    if missing:
+        raise ValueError(f"protocol amendment lacks audit provenance fields: {missing}")
+    return {name: str(value) for name, value in values.items()}
 
 
 def sha256_bytes(payload: bytes) -> str:
@@ -193,6 +222,37 @@ def load_prompt_activations(
     return prompt_ids, activations, feature_ids, splits, decoder_norms
 
 
+def deterministic_audit_ids(
+    rows: list[dict[str, Any]], fraction: float, seed: str
+) -> set[str]:
+    """Reconstruct the frozen stratified audit membership from BART labels."""
+    target = int(np.ceil(len(rows) * fraction))
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        groups[str(row.get("classifier_domain_label"))].append(row)
+    allocations = {domain: int(len(group) * fraction) for domain, group in groups.items()}
+    remaining = target - sum(allocations.values())
+    remainder_order = sorted(
+        groups,
+        key=lambda domain: (
+            -(len(groups[domain]) * fraction - allocations[domain]),
+            sha256_bytes(f"{seed}|stratum|{domain}".encode("utf-8")),
+        ),
+    )
+    for domain in remainder_order[:remaining]:
+        allocations[domain] += 1
+    chosen: set[str] = set()
+    for domain, group in groups.items():
+        ordered = sorted(
+            group,
+            key=lambda row: sha256_bytes(
+                f"{seed}|item|{row['blind_id']}".encode("utf-8")
+            ),
+        )
+        chosen.update(str(row["blind_id"]) for row in ordered[: allocations[domain]])
+    return chosen
+
+
 def load_prompt_domain_frequencies(
     path: Path,
     taxonomy: list[str],
@@ -202,6 +262,8 @@ def load_prompt_domain_frequencies(
     allow_smoke_labels: bool,
     allow_unaudited_labels: bool,
     expected_classifier_id: str,
+    expected_audit_provenance: dict[str, str],
+    audit_fraction: float,
 ) -> tuple[dict[str, np.ndarray], dict[str, int], int, dict[str, Any]]:
     rows = read_jsonl(path)
     filtered = [row for row in rows if str(row.get("condition")) == condition]
@@ -221,15 +283,44 @@ def load_prompt_domain_frequencies(
         raise ValueError(
             "feature discovery requires the protocol-pinned independent domain classifier"
         )
+    if not allow_smoke_labels:
+        provenance_drift = [
+            (index, field)
+            for index, row in enumerate(filtered, start=1)
+            for field, expected in expected_audit_provenance.items()
+            if str(row.get(field, "")) != expected
+        ]
+        if provenance_drift:
+            first_row, first_field = provenance_drift[0]
+            raise ValueError(
+                "domain labels are not bound to the frozen manual-labeling guide and "
+                f"protocol amendment (first drift: filtered row {first_row}, {first_field})"
+            )
+        blind_ids = [str(row.get("blind_id", "")) for row in filtered]
+        if any(not blind_id for blind_id in blind_ids) or len(set(blind_ids)) != len(blind_ids):
+            raise ValueError("domain labels require unique nonempty blind IDs")
+        outside_queue = [
+            row
+            for row in filtered
+            if row.get("manual_audited") is True and row.get("audit_selected") is not True
+        ]
+        if outside_queue:
+            raise ValueError("manual domain labels may govern only frozen audit rows")
     audit_rows = [row for row in filtered if row.get("audit_selected") is True]
     if not allow_smoke_labels:
-        expected_audit_count = int(np.ceil(0.10 * len(filtered)))
+        expected_audit_count = int(np.ceil(audit_fraction * len(filtered)))
         if len(audit_rows) != expected_audit_count or any(
-            not np.isclose(float(row.get("audit_fraction", -1.0)), 0.10)
+            not np.isclose(float(row.get("audit_fraction", -1.0)), audit_fraction)
             or row.get("audit_seed") != "latent-escape-domain-audit-v1"
             for row in filtered
         ):
             raise ValueError("domain-label audit size or seed differs from protocol")
+        expected_ids = deterministic_audit_ids(
+            filtered, audit_fraction, "latent-escape-domain-audit-v1"
+        )
+        observed_ids = {str(row["blind_id"]) for row in audit_rows}
+        if observed_ids != expected_ids:
+            raise ValueError("domain-label audit membership differs from frozen hash selection")
     unaudited = [row for row in audit_rows if row.get("manual_audited") is not True]
     if (not audit_rows or unaudited) and not allow_unaudited_labels:
         raise ValueError(
@@ -302,8 +393,32 @@ def load_prompt_domain_frequencies(
         "by_classifier_domain": class_agreement,
         "gate_pass": gate_pass,
         "bypassed_for_smoke": bool(not gate_pass and allow_unaudited_labels),
+        "audit_fraction": audit_fraction,
+        **expected_audit_provenance,
     }
     return frequencies, counts, len(filtered), audit_summary
+
+
+def primary_domain_columns(
+    prompt_frequencies: np.ndarray,
+    taxonomy: list[str],
+    minimum_rate: float,
+    exclusions: list[str],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return all descriptive rates and the non-residual primary-search columns."""
+    if prompt_frequencies.ndim != 2 or prompt_frequencies.shape[1] != len(taxonomy):
+        raise ValueError("prompt-frequency columns must match the frozen taxonomy")
+    rates = prompt_frequencies.mean(axis=0)
+    exclusion_set = set(exclusions)
+    permitted = np.asarray(
+        [domain not in exclusion_set for domain in taxonomy], dtype=bool
+    )
+    columns = np.flatnonzero(
+        (rates >= minimum_rate)
+        & (np.ptp(prompt_frequencies, axis=0) > 0)
+        & permitted
+    )
+    return rates, columns
 
 
 def normalized_columns(matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -716,6 +831,16 @@ def main() -> int:
     if not 0 < args.corrected_alpha < 1:
         parser.error("--corrected-alpha must be in (0, 1)")
     protocol = json.loads(PROTOCOL_PATH.read_text())
+    amendment = load_protocol_amendment(protocol)
+    amendment_hash = amendment_sha256()
+    audit_binding = audit_provenance(amendment, amendment_hash)
+    domain_selection = amendment["domain_selection"]
+    frozen_minimum_domain_rate = float(
+        domain_selection["minimum_development_output_rate"]
+    )
+    primary_domain_exclusions = list(
+        domain_selection["primary_selected_domain_exclusions"]
+    )
     frozen_multiple = protocol["feature_discovery"]["multiple_testing"]
     frozen_settings = {
         "condition": "baseline",
@@ -727,7 +852,7 @@ def main() -> int:
         "min_cv_correlation": 0.0,
         "bootstrap_resamples": int(protocol["analysis"]["bootstrap_resamples"]),
         "bootstrap_seed": int(protocol["analysis"]["bootstrap_seed"]),
-        "min_domain_rate": 0.10,
+        "min_domain_rate": frozen_minimum_domain_rate,
         "max_feature_active_fraction": 0.90,
         "activation_epsilon": 0.0,
         "min_feature_active_prompts": None,
@@ -753,6 +878,11 @@ def main() -> int:
         or args.decoder_norms is not None
     )
     taxonomy = list(protocol["target_domain_taxonomy"])
+    unknown_exclusions = sorted(set(primary_domain_exclusions) - set(taxonomy))
+    if unknown_exclusions:
+        raise ValueError(
+            f"amendment excludes domains outside the frozen taxonomy: {unknown_exclusions}"
+        )
     expected_samples = int(protocol["generation"]["development_baseline_samples_per_prompt"])
     expected_prompts = int(protocol["stimuli"]["development_count"])
 
@@ -779,6 +909,8 @@ def main() -> int:
             f"{protocol['domain_labeling']['classifier_repo_id']}@"
             f"{protocol['domain_labeling']['classifier_revision']}"
         ),
+        audit_binding,
+        0.10,
     )
     activation_set = set(prompt_ids)
     label_set = set(frequencies)
@@ -792,12 +924,16 @@ def main() -> int:
             f"expected {expected_prompts} development prompts, found {len(prompt_ids)}"
         )
     y = np.stack([frequencies[prompt_id] for prompt_id in prompt_ids], axis=0)
-    domain_rates = y.mean(axis=0)
-    eligible_domain_columns = np.flatnonzero(
-        (domain_rates >= args.min_domain_rate) & (np.ptp(y, axis=0) > 0)
+    domain_rates, eligible_domain_columns = primary_domain_columns(
+        y,
+        taxonomy,
+        args.min_domain_rate,
+        primary_domain_exclusions,
     )
     if not len(eligible_domain_columns):
-        raise ValueError("no domain meets the minimum development output rate")
+        raise ValueError(
+            "no non-excluded domain meets the frozen minimum development output rate"
+        )
     eligible_domains = [taxonomy[index] for index in eligible_domain_columns]
     y_eligible = y[:, eligible_domain_columns]
 
@@ -954,7 +1090,14 @@ def main() -> int:
         "artifact": "development_feature_discovery",
         "protocol_id": protocol["protocol_id"],
         "protocol_revision": protocol.get("protocol_revision"),
+        "effective_protocol_revision": amendment["effective_protocol_revision"],
         "protocol_sha256": sha256_file(PROTOCOL_PATH),
+        "protocol_amendment_id": amendment["amendment_id"],
+        "protocol_amendment_sha256": amendment_hash,
+        "domain_labeling_guide_id": audit_binding["domain_labeling_guide_id"],
+        "domain_labeling_guide_sha256": audit_binding[
+            "domain_labeling_guide_sha256"
+        ],
         "domain_classifier_revision": protocol["domain_labeling"][
             "classifier_revision"
         ],
@@ -1023,6 +1166,13 @@ def main() -> int:
         "domain_output_rates": {
             domain: float(domain_rates[index]) for index, domain in enumerate(taxonomy)
         },
+        "domain_selection_policy": {
+            "descriptive_rate_domains": taxonomy,
+            "primary_search_exclusions": primary_domain_exclusions,
+            "minimum_development_output_rate": frozen_minimum_domain_rate,
+            "other_retained_for_coverage_and_diversity_outcomes": True,
+            "source": "protocol_amendment_4.json:domain_selection",
+        },
         "eligible_domains": eligible_domains,
         "feature_filter": {
             "width": int(activations.shape[1]),
@@ -1036,6 +1186,7 @@ def main() -> int:
         ),
         "thresholds": {
             "minimum_domain_rate": args.min_domain_rate,
+            "frozen_minimum_domain_rate": frozen_minimum_domain_rate,
             "minimum_cv_correlation_exclusive": args.min_cv_correlation,
             "minimum_bootstrap_positive_fraction": args.min_bootstrap_positive,
         },
@@ -1045,6 +1196,14 @@ def main() -> int:
         "schema_version": 1,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "protocol_sha256": sha256_file(PROTOCOL_PATH),
+        "protocol_amendment_id": amendment["amendment_id"],
+        "protocol_amendment_sha256": amendment_hash,
+        "domain_labeling_guide_id": audit_binding["domain_labeling_guide_id"],
+        "domain_labeling_guide_sha256": audit_binding[
+            "domain_labeling_guide_sha256"
+        ],
+        "primary_search_domain_exclusions": primary_domain_exclusions,
+        "minimum_development_output_rate": frozen_minimum_domain_rate,
         "activation_path": str(args.prompt_activations),
         "activation_sha256": sha256_file(args.prompt_activations),
         "label_path": str(args.labels),

@@ -11,6 +11,25 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+try:
+    from .protocol_amendment import (
+        EXACT_TAXONOMY,
+        TEST_CONFIG_TEMPLATE_PATH,
+        amendment_sha256,
+        load_protocol_amendment,
+        read_json_object,
+        validate_test_config_amendment_bindings,
+    )
+except ImportError:  # Support ``python latent_escape/validate_protocol.py``.
+    from protocol_amendment import (
+        EXACT_TAXONOMY,
+        TEST_CONFIG_TEMPLATE_PATH,
+        amendment_sha256,
+        load_protocol_amendment,
+        read_json_object,
+        validate_test_config_amendment_bindings,
+    )
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL = ROOT / "latent_escape" / "protocol.json"
@@ -125,12 +144,19 @@ def validate_protocol(protocol: dict[str, Any]) -> None:
         and protocol["development_intervention_gate"]["paired_samples_per_prompt"] == 4,
         "development gate must remain 24 prompts x 4 paired samples",
     )
-    require(len(protocol["target_domain_taxonomy"]) >= 10, "domain taxonomy is underspecified")
+    require(
+        tuple(protocol["target_domain_taxonomy"]) == EXACT_TAXONOMY,
+        "frozen target-domain taxonomy or order drifted",
+    )
     power = protocol["power"]
     require(power["test_prompts"] == 120, "power design test count drift")
     require(POWER_REPORT.exists(), "missing frozen power report")
     actual_power_hash = hashlib.sha256(POWER_REPORT.read_bytes()).hexdigest()
     require(actual_power_hash == power["power_report_sha256"], "power report hash drift")
+    amendment = load_protocol_amendment(protocol)
+    validate_test_config_amendment_bindings(
+        read_json_object(TEST_CONFIG_TEMPLATE_PATH), amendment
+    )
 
 
 def validate_manifest(protocol: dict[str, Any]) -> dict[str, Any]:
@@ -165,6 +191,7 @@ def main() -> int:
 
     protocol = json.loads(PROTOCOL.read_text())
     validate_protocol(protocol)
+    amendment = load_protocol_amendment(protocol)
     manifest_summary: dict[str, Any] | None = None
     if MANIFEST.exists():
         manifest_summary = validate_manifest(protocol)
@@ -177,6 +204,16 @@ def main() -> int:
                 {
                     "protocol_id": protocol["protocol_id"],
                     "status": protocol["status"],
+                    "effective_protocol_revision": amendment[
+                        "effective_protocol_revision"
+                    ],
+                    "protocol_amendment": {
+                        "id": amendment["amendment_id"],
+                        "sha256": amendment_sha256(),
+                        "primary_selected_domain_exclusions": amendment[
+                            "domain_selection"
+                        ]["primary_selected_domain_exclusions"],
+                    },
                     "model": protocol["artifacts"]["model"]["repo_id"],
                     "sae": protocol["artifacts"]["sae"]["sae_lens_id"],
                     "prompts": protocol["stimuli"]["prompt_count"],

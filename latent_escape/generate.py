@@ -31,6 +31,12 @@ if str(ROOT) not in sys.path:
     # Keep both ``python -m latent_escape.generate`` and direct script execution
     # working; intervene.py uses package-qualified imports for auditability.
     sys.path.insert(0, str(ROOT))
+
+from latent_escape.protocol_amendment import (  # noqa: E402
+    amendment_sha256,
+    load_protocol_amendment,
+)
+
 DEFAULT_PROTOCOL = ROOT / "latent_escape" / "protocol.json"
 DEFAULT_MANIFEST = ROOT / "latent_escape" / "artifacts" / "prompt_manifest.jsonl"
 DEFAULT_TEST_CONFIG = ROOT / "latent_escape" / "test_frozen.json"
@@ -279,8 +285,28 @@ def _validate_test_freeze(
             f"Missing {config_path}; freeze the development choices before test access"
         )
     frozen = read_json(config_path)
+    amendment = load_protocol_amendment(protocol)
+    guide = amendment["domain_labeling_guide"]
+    expected_amendment = {
+        "protocol_amendment_id": amendment["amendment_id"],
+        "protocol_amendment_sha256": amendment_sha256(),
+        "domain_labeling_guide_id": guide["id"],
+        "domain_labeling_guide_sha256": guide["sha256"],
+        "effective_protocol_revision": amendment["effective_protocol_revision"],
+    }
     if frozen.get("protocol_id") != protocol["protocol_id"]:
         raise ValueError("test_frozen.json has the wrong protocol_id")
+    drift = {
+        key: {"observed": frozen.get(key), "expected": value}
+        for key, value in expected_amendment.items()
+        if frozen.get(key) != value
+    }
+    if drift:
+        raise ValueError(f"test_frozen.json amendment/guide provenance drift: {drift}")
+    for key in ("quality_sampling_plan_sha256", "quality_reliability_subset_sha256"):
+        value = frozen.get(key)
+        if not isinstance(value, str) or len(value) != 64:
+            raise ValueError(f"test_frozen.json is missing a valid {key}")
     for key in protocol["required_before_test"]:
         value = frozen.get(key)
         if value is None or value == "" or value == []:
@@ -300,6 +326,10 @@ def _validate_test_freeze(
         raise ValueError("a frozen matched control is outside the SAE width")
     if frozen.get("selected_domain") not in protocol["target_domain_taxonomy"]:
         raise ValueError("frozen selected domain is outside the taxonomy")
+    if frozen.get("selected_domain") in amendment["domain_selection"][
+        "primary_selected_domain_exclusions"
+    ]:
+        raise ValueError("frozen selected domain is excluded from primary selection")
     if frozen.get("domain_classifier_revision") != protocol["domain_labeling"][
         "classifier_revision"
     ]:
@@ -328,6 +358,9 @@ def _validate_test_freeze(
     if (
         gate_report.get("protocol_id") != protocol["protocol_id"]
         or gate_report.get("protocol_sha256") != sha256_file(DEFAULT_PROTOCOL)
+        or gate_report.get("protocol_amendment_id") != amendment["amendment_id"]
+        or gate_report.get("protocol_amendment_sha256") != amendment_sha256()
+        or gate_report.get("domain_labeling_guide_sha256") != guide["sha256"]
         or gate_report.get("split") != "development"
         or not isinstance(gate, dict)
         or gate.get("status") != "pass"
@@ -724,6 +757,8 @@ def main() -> int:
         raise ValueError("--strength must be between zero and one")
 
     protocol = read_json(args.protocol)
+    amendment = load_protocol_amendment(protocol)
+    guide = amendment["domain_labeling_guide"]
     if args.condition not in protocol["conditions"]:
         raise ValueError(f"Unknown condition: {args.condition}")
     prompts, manifest_hash = _validate_manifest(args.manifest, protocol, args.split)
@@ -737,9 +772,19 @@ def main() -> int:
         if (
             development_plan.get("protocol_id") != protocol["protocol_id"]
             or development_plan.get("protocol_sha256") != sha256_file(DEFAULT_PROTOCOL)
+            or development_plan.get("protocol_amendment_id")
+            != amendment["amendment_id"]
+            or development_plan.get("protocol_amendment_sha256")
+            != amendment_sha256()
+            or development_plan.get("domain_labeling_guide_sha256")
+            != guide["sha256"]
             or development_plan.get("development_gate_ready") is not True
         ):
             raise ValueError("development discovery artifact is not gate-ready")
+        if development_plan.get("selected_domain") in amendment[
+            "domain_selection"
+        ]["primary_selected_domain_exclusions"]:
+            raise ValueError("development plan selected an excluded primary domain")
     if args.split == "test":
         if args.protocol.resolve() != DEFAULT_PROTOCOL.resolve():
             raise ValueError("confirmatory generation requires the repository protocol")
@@ -838,6 +883,11 @@ def main() -> int:
         "schema_version": 1,
         "protocol_id": protocol["protocol_id"],
         "protocol_sha256": protocol_hash,
+        "effective_protocol_revision": amendment["effective_protocol_revision"],
+        "protocol_amendment_id": amendment["amendment_id"],
+        "protocol_amendment_sha256": amendment_sha256(),
+        "domain_labeling_guide_id": guide["id"],
+        "domain_labeling_guide_sha256": guide["sha256"],
         "manifest_sha256": manifest_hash,
         "split": args.split,
         "condition": args.condition,
@@ -993,7 +1043,18 @@ def main() -> int:
                 "record_type": "generation",
                 "protocol_id": protocol["protocol_id"],
                 "protocol_sha256": protocol_hash,
+                "effective_protocol_revision": amendment[
+                    "effective_protocol_revision"
+                ],
+                "protocol_amendment_id": amendment["amendment_id"],
+                "protocol_amendment_sha256": amendment_sha256(),
+                "domain_labeling_guide_id": guide["id"],
+                "domain_labeling_guide_sha256": guide["sha256"],
                 "manifest_sha256": manifest_hash,
+                "test_config_sha256": run_spec["test_config_sha256"],
+                "development_plan_sha256": run_spec[
+                    "development_plan_sha256"
+                ],
                 "run_id": run_id,
                 "prompt_id": prompt_id,
                 "cluster_id": prompt_id,
