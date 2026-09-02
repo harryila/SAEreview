@@ -325,7 +325,7 @@ def load_prompt_domain_frequencies(
     if (not audit_rows or unaudited) and not allow_unaudited_labels:
         raise ValueError(
             "the deterministic 10% audit must be completed before feature discovery; "
-            f"found {len(audit_rows)} queued and {len(unaudited)} without manual labels"
+            f"found {len(audit_rows)} queued and {len(unaudited)} without rater labels"
         )
     agreements = [
         row.get("domain_label") == row.get("classifier_domain_label") for row in audit_rows

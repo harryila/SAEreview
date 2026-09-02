@@ -13,6 +13,8 @@ latent_escape/artifacts/
 latent_escape/outputs/
 latent_escape/models/
 latent_escape/test_frozen.json
+latent_choice/outputs/
+latent_choice/test_frozen.json
 
 # Public checkpoints are downloaded assets, not project source.
 weights/*.pth

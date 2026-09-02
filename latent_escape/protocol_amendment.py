@@ -227,7 +227,7 @@ def validate_protocol_amendment(
         report_classifier_ids == [known.get("classifier_id")],
         "known classifier ID differs from report",
     )
-    require(known.get("manual_audit") == report.get("manual_audit"), "manual-audit status drift")
+    require(known.get("manual_audit") == report.get("manual_audit"), "rater-audit status drift")
     require(
         known.get("pre_domain_boundary", {}).get("resolved_count") == 640
         and known.get("pre_domain_boundary", {}).get("total_count") == 640

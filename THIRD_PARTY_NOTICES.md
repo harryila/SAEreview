@@ -13,6 +13,12 @@ does not bundle the dataset. `scripts/prepare_retrieval_assets.py` downloads the
 exact upstream file for the user and verifies SHA-256
 `12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369`.
 
+For the same reason, the public repository currently provides hashes, a
+text-free audit ledger, and aggregate reports for the Latent Escape row-level
+audit artifacts, but not the 64 generated analogy texts. Those texts remain
+local pending explicit upstream redistribution permission or other appropriate
+clearance.
+
 ## Scientific embedding SAEs
 
 The cs.LG and astro.PH checkpoints are downloaded from the authors' public

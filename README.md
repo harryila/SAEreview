@@ -1,12 +1,21 @@
 # SAEreview
 
-This repository contains two deliberately separated studies of sparse
-autoencoders (SAEs) and cross-domain analogy:
+This repository contains two deliberately separated completed studies of sparse
+autoencoders (SAEs) and cross-domain analogy, plus a successor study under
+development:
 
 1. **Retrieval pilot — frozen.** The completed SCAR study is preserved at
    [`v0.1-retrieval-study`](https://github.com/harryila/SAEreview/releases/tag/v0.1-retrieval-study).
-2. **Latent Escape — current direction.** A pre-specified causal-generation
-   experiment now lives in [`latent_escape/`](latent_escape/README.md).
+2. **Latent Escape — frozen at its measurement gate.** The development baseline
+   and independent AI-rater audit are preserved at
+   [`v0.2-measurement-gate-failure`](https://github.com/harryila/SAEreview/releases/tag/v0.2-measurement-gate-failure).
+   BART and the accepted AI rater agreed on only 18/64 audit items, so the study
+   stopped before feature discovery or any hypothesis-testing intervention.
+3. **Latent Choice — successor under development.** The frozen pre-development
+   protocol and executable choice endpoint live in
+   [`latent_choice/`](latent_choice/README.md). This study makes the model's
+   target-domain choice an explicit, directly measured action rather than
+   inferring it afterward with BART.
 
 The retrieval result motivates the pivot but is **not** evidence for the new
 generation hypothesis.
@@ -67,14 +76,23 @@ only as the initial k=128/n=3,072 smoke test; they are not decision artifacts.
 
 ## Latent Escape
 
-The next question is causal: can an interpretable SAE feature associated with an
-overused analogy domain be suppressed to change the model's target-domain
-distribution without materially reducing structural quality?
+Latent Escape asked whether an interpretable SAE feature associated with an
+overused analogy domain could be suppressed to change the model's target-domain
+distribution without materially reducing structural quality. Its 640-output
+development baseline completed, but the frozen measurement gate failed: BART
+and the accepted AI rater agreed on 18/64 labels (28.125%), including 0/38 for
+BART's `other` class.
 
-The in-repo MVP fixes Gemma 2 9B IT, the layer-20 16k Gemma Scope residual SAE,
-200 source prompts split 80 development / 120 untouched test, matched random
-features, activation noise, diversity prompting, and temperature controls. See
-the [protocol and current run status](latent_escape/README.md).
+That disagreement does not establish which instrument was correct. The study
+therefore makes no claim about the causal hypothesis: no feature was selected,
+no hypothesis-testing intervention was run, and the confirmatory split remains
+untouched. A separate two-prompt nonzero intervention was only a plumbing smoke
+test. See the [frozen protocol and audit report](latent_escape/README.md).
+
+The successor Latent Choice protocol will use an explicit domain-choice endpoint
+and reserve independent human ratings for declared-domain consistency and analogy
+quality. It is a distinct study; the failed audit will not be repaired or reused
+for feature discovery.
 
 ## License and attribution
 

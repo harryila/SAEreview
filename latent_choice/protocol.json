@@ -1,0 +1,369 @@
+{
+  "schema_version": 1,
+  "protocol_id": "latent-choice-v1",
+  "protocol_revision": 1,
+  "created_at": "2026-09-02",
+  "status": "predevelopment_frozen",
+  "predecessor": {
+    "study": "latent-escape-mvp-v1",
+    "frozen_stop_tag": "v0.2-measurement-gate-failure",
+    "frozen_stop_commit": "487ff9d76c7f5187b5dfc7582f146ea66d351648",
+    "domain_audit_report_sha256": "fcd7e2b7de340b4ad6972ba8bd7c977df24d2373641c05b4ea2b8b41d2e55b98",
+    "relationship": "Distinct successor study. The predecessor's classifier labels, AI-rater labels, prompt activations, feature candidates, and failed audit are not inputs to this study."
+  },
+  "research_question": "Does suppressing a development-selected SAE feature causally reduce the pinned model's explicit probability of choosing one target domain from a frozen domain menu?",
+  "claim_boundary": {
+    "positive_claim": "A development-selected Gemma Scope SAE feature causally influences Gemma 2's explicit analogy-domain choice within a frozen constrained menu.",
+    "not_claimed": [
+      "control of unconstrained or spontaneous analogy-domain selection",
+      "improved serendipity, creativity, usefulness, scientific discovery, or analogy quality",
+      "that a declared domain always matches the generated target system without human consistency evidence",
+      "that the selected feature is a universal or model-independent domain representation",
+      "that the Latent Escape classifier audit disproved the SAE causal hypothesis"
+    ]
+  },
+  "artifacts": {
+    "model": {
+      "repo_id": "google/gemma-2-9b-it",
+      "revision": "11c9b309abf73637e4b6f9a3fa1e92e615547819",
+      "dtype": "bfloat16",
+      "quantization": "none",
+      "execution": "single CUDA device cuda:0; automatic CPU/disk offload forbidden",
+      "chat_template": "official pinned Gemma instruction template; no system role"
+    },
+    "sae": {
+      "repo_id": "google/gemma-scope-9b-it-res",
+      "revision": "e86af97a5b6fbbccca28ab654f2fda1b0768f770",
+      "path": "layer_20/width_16k/average_l0_91/params.npz",
+      "sha256": "bbd770b6f8b92a2fe7498e05bd6274c6cfa89ebc08fb972c0e842840737f1a82",
+      "layer_zero_indexed": 20,
+      "site": "post-layer residual output at the final choice-prompt position",
+      "width": 16384,
+      "calculation_dtype": "float32"
+    },
+    "choice_code_tokens": {
+      "path": "latent_choice/code_token_manifest.json",
+      "sha256": "ab93e0c3a236163ae5bf643d10f0337110bc8ebfbfb65c4cf326f957967fa16f",
+      "status": "verified_before_development"
+    }
+  },
+  "stimuli": {
+    "source": "The existing frozen SCAR source-mechanism prompt population; no known paired target is shown or scored.",
+    "prompt_manifest_path": "latent_escape/artifacts/prompt_manifest.jsonl",
+    "prompt_manifest_sha256": "18100b8a28777539737e5a33b1c00bbccd5da35dd3325828399a5d5e426d5b98",
+    "prompt_count": 200,
+    "development_count": 80,
+    "test_count": 120,
+    "development_rule": "Only development rows may be passed to a model, mapped to codes, or written to Latent Choice artifacts before a complete test_frozen.json exists.",
+    "test_rule": "Do not materialize test code mappings, logits, activations, choices, or generations before the development feature and causal gates pass and test_frozen.json is complete."
+  },
+  "domain_menu": {
+    "domains": [
+      "biology/ecology",
+      "medicine/public health",
+      "physics",
+      "chemistry/materials",
+      "engineering/control",
+      "computer science/software",
+      "AI/neural networks",
+      "economics/markets",
+      "organizations/governance",
+      "sociology/culture",
+      "psychology/cognition",
+      "education/learning",
+      "law/policy",
+      "history",
+      "arts/literature",
+      "sports/games",
+      "geography/earth/environment",
+      "everyday/household"
+    ],
+    "other_policy": "The catch-all class other is excluded by design from the action space, feature search, outcomes, and claims. The model must choose one of the 18 substantive domains.",
+    "code_surfaces": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H",
+      "I",
+      "J",
+      "K",
+      "L",
+      "M",
+      "N",
+      "O",
+      "P",
+      "Q",
+      "R"
+    ],
+    "code_completions": [
+      " A",
+      " B",
+      " C",
+      " D",
+      " E",
+      " F",
+      " G",
+      " H",
+      " I",
+      " J",
+      " K",
+      " L",
+      " M",
+      " N",
+      " O",
+      " P",
+      " Q",
+      " R"
+    ],
+    "tokenization_contract": "After rendering the complete pinned chat template and appending the frozen assistant prefill CHOICE:, appending each frozen leading-space code completion must add exactly one unique token without changing the prompt-token prefix. Hard-fail before development otherwise. The exact IDs are committed in and hash-bound by code_token_manifest.json; every run and test_frozen.json must match it.",
+    "mapping": {
+      "seed": "latent-choice-domain-code-map-v1",
+      "prompt_order": "Within the provided split's prompt IDs, sort by the raw bytes of SHA256(seed + NUL + prompt_id), then by prompt_id as an exact tie-break.",
+      "algorithm": "For zero-indexed prompt rank r and domain index i, map domains[i] to code_surfaces[(i + r) mod 18]. Codes and domains use their frozen array order above.",
+      "development_balance": "Across 80 prompts, every code-domain pairing occurs four or five times.",
+      "test_balance": "Across 120 prompts, every code-domain pairing occurs six or seven times; this mapping is not materialized until test access is authorized.",
+      "purpose": "Prompt-specific balanced rotation prevents a semantic domain from being confounded with one letter token while keeping each within-prompt condition comparison identical."
+    }
+  },
+  "choice_prompt": {
+    "template": "Choose the target domain in which you would construct a structurally faithful analogy for the source mechanism below. Preserve causal roles, relations, and boundary conditions. This step chooses only the domain; do not write the analogy yet.\n\nSource system: {source_name}\nSource domain: {source_domain}\nSource description: {source_description}\n\nDomain menu:\n{coded_menu}\n\nYour response is prefilled with CHOICE:. Complete that fixed prefix with exactly one listed code and nothing else.",
+    "menu_line_template": "{code} = {domain}",
+    "assistant_prefill": "CHOICE:",
+    "choice_position": "The next-token logits after the official chat template's generation prefix plus the exact assistant prefill CHOICE:; the layer-20 final prompt position is both the measured SAE position and the only intervention position.",
+    "choice_temperature": 1.0,
+    "masking": "All non-code logits are masked before the choice distribution and realized choice are computed.",
+    "full_vocabulary_diagnostic": "Also record the unmasked softmax probability mass assigned to the 18 code tokens, but do not use it as the primary endpoint.",
+    "generated_target_domain_policy": "No post-hoc classifier and no generated self-report defines the domain outcome. The programmatic code-to-domain mapping is the outcome."
+  },
+  "choice_endpoint": {
+    "mapping_seed": "latent-choice-domain-code-map-v1",
+    "paired_draw_seed": "latent-choice-paired-draw-v1",
+    "paired_draws_per_prompt": 8,
+    "decision_prefix": "CHOICE:",
+    "candidate_completions": "The frozen leading-space code_completions in domain_menu.",
+    "implementation": "latent_choice.choice_endpoint",
+    "development_baseline_policy": "Eight paired realized choices are derived from the single deterministic q vector; they do not require eight model forwards and are not inputs to feature discovery."
+  },
+  "choice_measurement": {
+    "conditional_probability": "For candidate-code logits z_d, q(d) = exp(z_d) / sum_k exp(z_k), evaluated in float64 on CPU after copying the native model logit values and ordered by the canonical domain list.",
+    "primary_observation_unit": "One source prompt. Each condition produces one deterministic 18-element q vector per prompt.",
+    "baseline_activation": "Capture exactly one 16,384-element SAE activation vector at the choice position in the untreated development baseline forward pass. Store the matrix with aligned prompt IDs in a separate immutable NPZ and bind its SHA-256 in the run report.",
+    "realized_choice": {
+      "role": "secondary action-rate outcome and input to clean conditional analogy generation",
+      "sampling": "Inverse-CDF sampling from q in canonical domain order using condition-independent uniforms.",
+      "seed": "latent-choice-paired-draw-v1",
+      "uniform_rule": "Let n be the unsigned big-endian integer encoded by the first 8 bytes of SHA256(seed + NUL + prompt_id + NUL + decimal sample_index); use u = (n + 0.5) / 2^64.",
+      "development_gate_samples_per_prompt": 4,
+      "test_samples_per_prompt": 8
+    },
+    "candidate_mass_compliance": {
+      "timing": "After the complete 80-prompt untreated development choice baseline and before any feature/domain association is computed.",
+      "per_prompt_floor": 0.5,
+      "minimum_prompt_fraction": 0.9,
+      "row_policy": "Retain and report all 80 prompts regardless of their individual candidate mass; this gate does not create a prompt-level exclusion.",
+      "failure_policy": "Stop before feature discovery if fewer than 90 percent of development prompts have full_vocab_candidate_mass >= 0.5. Do not alter the prefix, code set, mapping, threshold, or prompt after inspecting the result.",
+      "interpretation": "Passing establishes that the restricted distribution is usually supported by substantial unmasked probability mass; the endpoint remains a constrained-menu choice and is not an unconstrained-generation measure."
+    },
+    "required_record_fields": [
+      "prompt_id",
+      "split",
+      "condition",
+      "feature_id",
+      "strength",
+      "candidate_token_ids",
+      "domain_to_code",
+      "domain_logits",
+      "domain_probabilities",
+      "code_logits",
+      "full_vocab_candidate_mass",
+      "mapping_sha256",
+      "activation_row_index",
+      "activation_sha256",
+      "decision_forward_count",
+      "capture_hook_calls",
+      "paired_realized_choices"
+    ]
+  },
+  "feature_discovery": {
+    "development_only": true,
+    "outcome": "Per-prompt untreated baseline conditional domain probability q(d), not generated text and not a classifier or rater label.",
+    "eligible_domains": "All 18 substantive domains whose mean untreated development q is at least the uniform-menu probability 1/18.",
+    "eligible_features": "Features active at the exact choice position on at least 10 percent and at most 90 percent of the 80 development prompts.",
+    "multiple_testing": {
+      "method": "Prompt-row permutation maximum positive Spearman statistic across every eligible feature-domain pair.",
+      "permutations": 1000,
+      "seed": 20260902,
+      "familywise_alpha": 0.05,
+      "permutation_unit": "Shuffle complete 18-element prompt q rows; never shuffle domain columns independently."
+    },
+    "stability": {
+      "cross_validation": "Five source-prompt folds; positive out-of-fold Spearman association required.",
+      "prompt_bootstrap_resamples": 10000,
+      "bootstrap_seed": 20260902,
+      "minimum_positive_sign_fraction": 0.9
+    },
+    "timing": "The selected feature must be active on at least 10 percent of development prompts at the exact residual position whose edited state produces the measured code logits. No later token activation can satisfy this gate.",
+    "semantic_review": "At least four of the five highest-activating development prompts must be judged semantically consistent with the frozen feature/domain interpretation before intervention generation.",
+    "tie_break": "Highest observed positive Spearman association; exact ties use lowest feature ID, then frozen domain order.",
+    "matched_random_features": {
+      "count": 5,
+      "seed": 20260902,
+      "matching": "Development choice-position activation frequency +/-10 percent, mean positive activation +/-20 percent, decoder-vector norm +/-10 percent.",
+      "selection": "Hash order among eligible non-primary features without replacement."
+    },
+    "selected_activation_threshold": "Median positive selected-feature activation across the 80 untreated development choice positions."
+  },
+  "intervention": {
+    "reused_implementation": "latent_escape.intervene.InterventionSpec and intervention_context, bound to the pinned model/SAE hashes above.",
+    "suppression": "Subtract strength times the selected SAE activation times its decoder vector from the original layer-20 residual; never replace the residual with the full SAE reconstruction.",
+    "scope": "Install the hook for exactly one full-prompt forward pass that produces the code logits. A nonzero decision intervention must report hook_call_count = 1.",
+    "target_doses": [
+      0.25,
+      0.5,
+      1.0
+    ],
+    "confirmatory_strength": 1.0,
+    "matched_random_controls": "Suppress each of the five frozen matched random features at strength 1.0 using the identical choice prompt.",
+    "activation_noise_control": "At the same choice position, add a deterministic random residual direction whose realized L2 norm matches the full targeted suppression delta for that prompt.",
+    "noise_seed": 20260902,
+    "zero_strength_invariant": "Before every real process, a zero-strength installed hook must reproduce baseline logits bit-for-bit.",
+    "clean_downstream_generation": {
+      "required_arms": [
+        "baseline",
+        "targeted_feature_suppression_full"
+      ],
+      "rule": "After the code is sampled, remove the hook, discard every intervened cache/state, and rerun from the full unedited prompt with the textual declared domain appended. Generate the analogy with no hook installed.",
+      "template": "The explicitly selected target domain is: {declared_domain}. Construct one structurally faithful analogy in that domain. Return only valid JSON with target_system, mappings (at least three source_role/target_role/shared_relation objects), explanation, and limitations (at least two strings).",
+      "pairing": "Use the same generation seed for a prompt/sample across baseline and targeted arms. If both arms select the same domain, the clean conditional prompt and generated bytes must be identical.",
+      "control_policy": "Matched-random and activation-noise arms require choice measurements and realized codes, not full analogy generation."
+    }
+  },
+  "conditions": {
+    "development_baseline": [
+      "baseline"
+    ],
+    "development_gate": [
+      "baseline",
+      "targeted_feature_suppression_0.25",
+      "targeted_feature_suppression_0.5",
+      "targeted_feature_suppression_1.0",
+      "five_matched_random_feature_suppressions_1.0",
+      "l2_matched_activation_noise_1.0"
+    ],
+    "confirmatory_test": [
+      "baseline",
+      "targeted_feature_suppression_1.0",
+      "five_matched_random_feature_suppressions_1.0",
+      "l2_matched_activation_noise_1.0"
+    ]
+  },
+  "outcomes": {
+    "primary": "Prompt-mean change in selected-domain conditional probability q_selected: full targeted suppression minus baseline.",
+    "primary_specificity": "The targeted change minus the mean change from the five matched-random feature suppressions.",
+    "negative_control": "The targeted change minus the L2-matched activation-noise change.",
+    "secondary": [
+      "paired realized selected-domain choice rate",
+      "conditional domain-distribution entropy",
+      "full-vocabulary candidate-code probability mass",
+      "dose-response trend on development",
+      "declared-domain consistency of clean generated analogies",
+      "structural analogy quality"
+    ],
+    "analysis": {
+      "resampling_unit": "source prompt",
+      "bootstrap_resamples": 10000,
+      "bootstrap_seed": 20260902,
+      "interval": "two-sided percentile 95 percent",
+      "strong_support_rule": "The upper confidence bounds for the primary, primary-specificity, and negative-control contrasts must all be below zero, and the human consistency and structural-quality guardrails must pass.",
+      "claim_wording": "Explicit constrained-menu analogy-domain choice only."
+    }
+  },
+  "human_evaluation": {
+    "rater_type": "human_only",
+    "prohibited": "AI systems, automated classifiers, and model self-reports cannot supply or adjudicate the human consistency or quality ratings.",
+    "blinding": "Hide condition, feature ID, intervention, strength, code letter, logits, probabilities, and study hypothesis. Show source mechanism, textual declared domain, and clean generated analogy.",
+    "tasks": {
+      "declared_domain_consistency": "Does the target system actually belong to the displayed declared domain? yes/no/unclear; unclear counts as inconsistent.",
+      "structural_quality": "Rate causal-role, relation, and boundary-condition correspondence from 1 (broken/surface-only) to 5 (faithful)."
+    },
+    "sampling": {
+      "arms": [
+        "baseline",
+        "targeted_feature_suppression_full"
+      ],
+      "primary": "One outcome-independent hash-selected paired sample index per prompt in both arms.",
+      "primary_seed": "latent-choice-human-pair-v1",
+      "reliability": "A second independent human rates both arms for ceil(10 percent of prompts); duplicate scores are reliability-only and never replace or average into primary endpoints.",
+      "reliability_seed": "latent-choice-human-reliability-v1",
+      "development_gate_workload": "48 primary tasks plus 6 duplicate tasks = 54.",
+      "test_workload": "240 primary tasks plus 24 duplicate tasks = 264."
+    },
+    "gates": {
+      "minimum_consistency_rate_each_arm": 0.9,
+      "quality_noninferiority_margin": -0.25,
+      "reliability_reporting": "Report agreement for consistency and linear-weighted Cohen kappa for quality; no reliability threshold changes the frozen primary ratings."
+    },
+    "provenance": "Every rating artifact must record a nonempty human rater ID, blinded=true, the frozen rubric hash, and an attestation that the rater was a person. Primary and duplicate rater IDs must differ."
+  },
+  "development_gate": {
+    "prompt_count": 24,
+    "prompt_selection": "Hash order within above/below selected-activation-threshold development strata: take up to 12 above threshold, then fill from below.",
+    "paired_choice_samples_per_prompt": 4,
+    "test_access": "forbidden",
+    "proceed_only_if": [
+      "Full targeted suppression lowers selected-domain q more than baseline.",
+      "Full targeted suppression lowers selected-domain q more than the mean of five matched-random suppressions.",
+      "Full targeted suppression lowers selected-domain q more than L2-matched activation noise.",
+      "Selected-domain q is non-increasing across at least two adjacent target-dose steps.",
+      "Human declared-domain consistency is at least 90 percent in baseline and full targeted arms.",
+      "Mean primary-human structural quality for full targeted remains within 0.25 points of baseline.",
+      "Required-schema-valid clean JSON rate is no more than 2 percentage points below baseline."
+    ],
+    "failure_policy": "Stop without creating test_frozen.json. Do not replace the feature, domain, controls, dose, or gate after seeing the result."
+  },
+  "test_access_guard": {
+    "confirmation_flag": "--confirm-test",
+    "config_path": "latent_choice/test_frozen.json",
+    "requirements": [
+      "The development feature-discovery artifact and development causal-gate report both pass and their SHA-256 hashes match test_frozen.json.",
+      "The protocol, code-token manifest, code-mapping algorithm/seed, prompt manifest, model, SAE, human rubric, sampling plans, environment lock, and clean generation code are hash-bound.",
+      "The selected domain, selected feature, five matched controls, selected activation threshold, full strength 1.0, and noise rule are frozen.",
+      "The current git commit exactly matches generation_code_commit, the worktree is clean, and the environment lock hash matches.",
+      "All 120 test prompts are required; prompt filters, limits, analysis overrides, dry runs, and output overwrites are rejected.",
+      "Test code mappings are materialized only after config validation and are hash-bound before the first model forward.",
+      "An append-only arm ledger prevents rerunning a completed confirmatory arm under another path."
+    ],
+    "no_adaptation": "After test_frozen.json is written, do not change the feature, domain, controls, strength, mapping, prompt, seeds, outcomes, exclusions, human rubric, or analysis."
+  },
+  "required_before_test": [
+    "protocol_sha256",
+    "prompt_manifest_sha256",
+    "choice_prompt_sha256",
+    "choice_code_token_ids",
+    "choice_code_token_manifest_sha256",
+    "domain_mapping_seed",
+    "domain_mapping_algorithm_sha256",
+    "test_mapping_sha256",
+    "selected_domain",
+    "selected_feature_id",
+    "five_matched_random_feature_ids",
+    "selected_activation_threshold",
+    "intervention_strength",
+    "noise_rule_sha256",
+    "development_discovery_report_path",
+    "development_discovery_report_sha256",
+    "development_gate_report_path",
+    "development_gate_report_sha256",
+    "human_rater_protocol_sha256",
+    "human_sampling_plan_sha256",
+    "domain_consistency_gate",
+    "structural_quality_noninferiority_margin",
+    "generation_code_commit",
+    "environment_lock_sha256",
+    "frozen_at_utc"
+  ]
+}

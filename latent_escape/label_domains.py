@@ -380,7 +380,7 @@ def load_manual_audit_import(
     for row_number, row in enumerate(rows, start=1):
         blind_id = str(row.get("blind_id", "")).strip()
         if not blind_id:
-            raise ValueError(f"{path}:{row_number}: manual audit row lacks blind_id")
+            raise ValueError(f"{path}:{row_number}: rater-audit row lacks blind_id")
         exposed = sorted(
             field
             for field in FORBIDDEN_MANUAL_AUDIT_FIELDS
@@ -388,7 +388,7 @@ def load_manual_audit_import(
         )
         if exposed:
             raise ValueError(
-                f"{path}:{row_number}: blinded manual audit exposes forbidden fields: "
+                f"{path}:{row_number}: blinded rater audit exposes forbidden fields: "
                 f"{exposed}"
             )
         for field, expected in expected_provenance.items():
@@ -505,7 +505,7 @@ def load_frozen_classifier_artifact(
             )
         if row.get("manual_audited") is not False or row.get("manual_override") is not False:
             raise ValueError(
-                f"{path}:{row_number}: source classifier artifact contains manual labels"
+                f"{path}:{row_number}: source classifier artifact contains imported rater labels"
             )
         if row.get("primary_eligible") is not True:
             raise ValueError(f"{path}:{row_number}: source classifier artifact is ineligible")
@@ -829,7 +829,7 @@ def main() -> int:
         missing = audit_ids - set(overrides)
         extra = set(overrides) - audit_ids
         raise ValueError(
-            "manual audit import must contain every frozen audit item and no others: "
+            "rater-audit import must contain every frozen audit item and no others: "
             f"{len(missing)} missing, {len(extra)} extra"
         )
     for row in labels:

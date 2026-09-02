@@ -1,12 +1,13 @@
-.PHONY: reproduce-retrieval check latent-prompts latent-protocol latent-test latent-dry-run latent-dev-baseline
+.PHONY: reproduce-retrieval check latent-prompts latent-protocol latent-test latent-dry-run latent-dev-baseline latent-choice-protocol latent-choice-test latent-choice-dry-run
 
 reproduce-retrieval:
 	./scripts/reproduce_retrieval.sh
 
 check:
-	uv run python -m py_compile *.py scripts/*.py latent_escape/*.py
+	uv run python -m py_compile *.py scripts/*.py latent_escape/*.py latent_choice/*.py
 	uv run python latent_escape/validate_protocol.py
-	uv run python -m pytest -q latent_escape/tests
+	uv run python -m latent_choice.validate_protocol
+	uv run python -m pytest -q latent_escape/tests latent_choice/tests
 
 latent-protocol:
 	uv run python latent_escape/validate_protocol.py --show-summary
@@ -28,3 +29,12 @@ latent-dev-baseline: latent-protocol
 	uv run python -m latent_escape.generate --split development --condition baseline
 	uv run python -m latent_escape.capture_activations --split development --condition baseline
 	uv run python -m latent_escape.label_domains --generations latent_escape/outputs/generations/development_baseline.jsonl --output latent_escape/outputs/labels/development_baseline.jsonl --backend hf-zero-shot
+
+latent-choice-protocol:
+	uv run python -m latent_choice.validate_protocol --show-summary
+
+latent-choice-test:
+	uv run python -m pytest -q latent_choice/tests
+
+latent-choice-dry-run: latent-prompts
+	uv run python -m latent_choice.run baseline --dry-run --limit-prompts 2 --overwrite

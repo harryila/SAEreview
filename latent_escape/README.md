@@ -82,7 +82,7 @@ feature-discovery result or evidence for the hypothesis.
 
 The frozen 80-prompt development split was run at eight samples per prompt on
 the real stack, producing 640 baseline generations, 80 prompt-level SAE vectors
-of width 16,384, 640 pinned BART domain labels, and a blinded 64-item manual-audit
+of width 16,384, 640 pinned BART domain labels, and a blinded 64-item AI-rater audit
 queue. The untouched test split was not accessed. Strict JSON validation passed
 for 584/640 generations. Of the 56 strict-invalid outputs, 55 reached the
 384-token limit (17 after a complete schema-valid object and 38 while incomplete),
@@ -115,7 +115,7 @@ unchanged. This is a post-baseline, outcome-informed development amendment, not
 a claim that the exclusion was preregistered.
 
 This is a **transparent post-baseline, pre-analysis amendment**. Here,
-“pre-analysis” means before the manual audit, prompt-level label/activation
+“pre-analysis” means before the accepted AI-rater audit, prompt-level label/activation
 associations, or feature analysis; the aggregate baseline report and counts had
 already been reviewed. It is not a fully preregistered study.
 
@@ -156,6 +156,13 @@ for the ignored local artifacts used in this audit and adjudication. It also
 preserves the excluded first attempt and an aborted malformed-packet execution
 without using either result.
 
+[`domain_audit_ledger.jsonl`](domain_audit_ledger.jsonl) publishes the 64
+text-free row-level comparisons (blind ID, analogy-text hash, classifier label,
+accepted AI-rater label, and agreement flag), sufficient to recompute the gate's
+headline counts without redistributing the generated analogy texts. The latter
+remain withheld because SCAR's pinned upstream repository has no explicit
+redistribution license; see [`../THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
+
 ## Prepare and verify prompts
 
 ```bash
@@ -193,7 +200,7 @@ make latent-dev-baseline
 That command generates eight paired-seed outputs per prompt, captures exactly
 one pre-generation SAE vector per prompt (plus nested pre-domain diagnostics),
 labels targets with the pinned independent classifier, and writes a blinded 10%
-manual-audit queue. The already-completed revision-3 baseline can be bound to
+domain-audit queue. The already-completed revision-3 baseline can be bound to
 Amendment 4 without rerunning BART:
 
 ```bash
@@ -238,7 +245,11 @@ captured `development_baseline_prompt.pre_domain.jsonl` through
 After this gate failure, no feature-discovery, intervention, or test step below
 was run.
 
-The remaining CLIs are intentionally separate at the manual checkpoints:
+Legacy `manual_*` schema keys and wording inside immutable, hash-bound artifacts
+are retained for compatibility. They do not indicate that the accepted audit in
+this run used a human rater.
+
+The remaining CLIs are intentionally separate at the rater-review checkpoints:
 
 - `generate.py` runs baseline, dose, targeted, matched-random, activation-noise,
   diversity-prompt, temperature, and promotion conditions with paired seeds.
