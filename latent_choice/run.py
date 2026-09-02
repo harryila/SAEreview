@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import os
 from pathlib import Path
+import platform
 import tempfile
 from typing import Any, Iterable
 
@@ -387,6 +389,15 @@ def run_baseline(
         "sae_revision": SAE_REVISION,
         "sae_sha256": SAE_SHA256,
         "environment_lock_sha256": sha256_file(lock_path),
+        "runtime": {
+            "python": platform.python_version(),
+            "torch": torch.__version__,
+            "transformers": importlib.metadata.version("transformers"),
+            "accelerate": importlib.metadata.version("accelerate"),
+            "huggingface_hub": importlib.metadata.version("huggingface-hub"),
+            "cuda_runtime": torch.version.cuda,
+            "gpu": torch.cuda.get_device_name(0) if not dry_run else None,
+        },
         "choice_code_token_manifest_path": (
             _display_path(DEFAULT_CODE_TOKENS) if code_manifest is not None else None
         ),
