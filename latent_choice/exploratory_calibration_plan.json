@@ -1,0 +1,133 @@
+{
+  "adopted_after": {
+    "known_v1_diagnostics": {
+      "mean_full_vocab_code_mass": 0.3615771778863593,
+      "mean_max_conditional_probability": 0.90886507091115,
+      "pearson_mass_vs_max_conditional": -0.0787351517273657,
+      "prompts_at_or_above_v1_mass_floor": 13,
+      "prompts_total": 80,
+      "strongest_mean_code_probability": {
+        "code": "Q",
+        "value": 0.10451556033629827
+      },
+      "weakest_mean_code_probability": {
+        "code": "B",
+        "value": 0.013158620538739526
+      }
+    },
+    "statement": "This plan was written after the frozen Latent Choice v1 compliance stop and after aggregate v1 row diagnostics were known. It is exploratory endpoint calibration, not a preregistration or hypothesis test."
+  },
+  "calibration_id": "latent-choice-endpoint-calibration-exploratory-v1",
+  "decision_rubric": {
+    "arm_order": [
+      "flat_current",
+      "flat_newline",
+      "hierarchical_newline"
+    ],
+    "purpose": "Recommend v2 design only when semantic choices are stable to within-prompt code rotations; code-set mass is descriptive and is not an absolute stop gate.",
+    "strong_mapping_invariance": {
+      "leave_one_rotation_out_definition": "For each prompt, all six leave-one-rotation-out geometric estimates must have Jensen-Shannon divergence no greater than 0.05 nats from the full six-rotation estimate, and at least five of six must retain its argmax domain.",
+      "leave_one_rotation_out_jsd_maximum": 0.05,
+      "leave_one_rotation_out_top_domain_matches_minimum": 5,
+      "leave_one_rotation_out_stable_prompts_minimum": 22,
+      "median_pairwise_spearman_minimum": 0.7,
+      "pairwise_spearman_population": "The pooled 24 prompts x 15 unordered rotation pairs within an endpoint arm.",
+      "prompts_with_at_least_4_of_6_matching_raw_argmax_minimum": 20,
+      "undefined_pairwise_spearman_policy": "An arm cannot meet strong mapping invariance if any within-prompt rotation-pair Spearman correlation is undefined because either distribution is constant. Undefined values are serialized as null, never NaN."
+    },
+    "selection": "If multiple arms meet the descriptive rubric, use the first in arm_order. If none meets it, stop coded-choice work rather than invent a fourth endpoint on these prompts."
+  },
+  "endpoint_arms": {
+    "flat_current": {
+      "candidate_surface": "leading-space A through R",
+      "menu_size": 18,
+      "prefill": "CHOICE:"
+    },
+    "flat_newline": {
+      "candidate_surface": "A through R without a leading space",
+      "menu_size": 18,
+      "prefill": "CHOICE followed by colon and newline"
+    },
+    "hierarchical_newline": {
+      "group_menu_size": 6,
+      "prefills": [
+        "GROUP followed by colon and newline",
+        "DOMAIN followed by colon and newline"
+      ],
+      "subdomain_menu_size": 3
+    }
+  },
+  "hierarchy_groups": {
+    "institutions/policy": [
+      "economics/markets",
+      "organizations/governance",
+      "law/policy"
+    ],
+    "learning/play/daily life": [
+      "education/learning",
+      "sports/games",
+      "everyday/household"
+    ],
+    "life/health": [
+      "biology/ecology",
+      "medicine/public health",
+      "psychology/cognition"
+    ],
+    "physical/earth sciences": [
+      "physics",
+      "chemistry/materials",
+      "geography/earth/environment"
+    ],
+    "society/humanities": [
+      "sociology/culture",
+      "history",
+      "arts/literature"
+    ],
+    "technology": [
+      "engineering/control",
+      "computer science/software",
+      "AI/neural networks"
+    ]
+  },
+  "integrity": {
+    "batch_size": 2,
+    "feature_analysis": false,
+    "intervention": false,
+    "model_batch_forward_count": 648,
+    "model_generation": false,
+    "public_rows_contain_source_text": false,
+    "scored_decision_position_count": 1296,
+    "test_access": false,
+    "token_contract": "Every candidate must be a unique, prefix-preserving, single-token continuation in every exact rendered context before the first model forward."
+  },
+  "measurements": [
+    "top 20 unmasked next tokens and full-vocabulary probabilities",
+    "candidate-set mass by endpoint and hierarchy stage",
+    "semantic argmax agreement across six code rotations",
+    "pairwise Spearman correlation and Jensen-Shannon divergence",
+    "rotation-averaged semantic distribution using normalized geometric means",
+    "arithmetic-mean sensitivity",
+    "leave-one-rotation-out stability",
+    "conditional probability and centered-logit effects by code identity",
+    "paired newline-minus-current code-mass change",
+    "flat-versus-hierarchical construct agreement"
+  ],
+  "prompt_sampling": {
+    "count": 24,
+    "population": "the 80 development prompts only",
+    "rule": "Take the first 24 prompt IDs after sorting by SHA256('latent-choice-endpoint-calibration-v1' + NUL + prompt_id), breaking ties by prompt_id.",
+    "seed": "latent-choice-endpoint-calibration-v1"
+  },
+  "rotation_design": {
+    "count_per_prompt": 6,
+    "flat": "For zero-based selected-prompt rank p and rotation k, use (6p + 5k) mod 18. Across 24 prompts this assigns each semantic domain to every code exactly eight times.",
+    "hierarchy_group": "Use (p + k) mod 6.",
+    "hierarchy_subdomain": "For group index g, use (p + 2k + g) mod 3."
+  },
+  "schema_version": "1.0",
+  "tokenizer_preflight_known_before_model_scoring": {
+    "literal_space_prefix": "invalid because tokenizing 'CHOICE: A' replaces the standalone trailing-space token; it is not a prefix-preserving next-token action",
+    "newline_prefix": "valid one-token boundary for the pinned tokenizer",
+    "original_prefix": "valid one-token boundary for the pinned tokenizer"
+  }
+}

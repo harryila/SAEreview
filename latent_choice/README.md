@@ -79,6 +79,24 @@ Evidence:
 The source-text-free activation matrix remains outside the public repository;
 its SHA-256 is bound in the report and verification artifact.
 
+## Exploratory endpoint calibration
+
+The v1 stop remains final. A separate, explicitly exploratory calibration now
+tests the narrower diagnosis suggested by the public rows: formatting-token
+mass and letter identity may be obscuring an otherwise decisive constrained
+choice. It hash-selects 24 development prompts, applies six within-prompt code
+rotations, records the top 20 unmasked next tokens, and compares the original
+flat endpoint with a tokenizer-valid newline boundary and a 6-by-3 hierarchy.
+It performs no SAE feature analysis or intervention and cannot access the test
+split. See [`exploratory_calibration_plan.json`](exploratory_calibration_plan.json).
+
+The literal trailing-space variant was rejected before model scoring because
+the pinned tokenizer retokenizes the completed `CHOICE: A` sequence instead of
+treating `A` as a prefix-preserving next token. A newline is the nearest valid
+committed-whitespace boundary. The calibration does not reopen or reinterpret
+the failed v1 gate; it determines only whether a distinct v2 endpoint is worth
+freezing.
+
 The primary endpoint is the prompt-mean change in the selected domain's `q`
 under full targeted suppression versus baseline. Specificity contrasts compare
 that change with five activation/norm-matched random-feature suppressions and

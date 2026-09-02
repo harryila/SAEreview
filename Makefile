@@ -1,4 +1,4 @@
-.PHONY: reproduce-retrieval check latent-prompts latent-protocol latent-test latent-dry-run latent-dev-baseline latent-choice-protocol latent-choice-test latent-choice-dry-run
+.PHONY: reproduce-retrieval check latent-prompts latent-protocol latent-test latent-dry-run latent-dev-baseline latent-choice-protocol latent-choice-test latent-choice-dry-run latent-choice-calibration
 
 reproduce-retrieval:
 	./scripts/reproduce_retrieval.sh
@@ -38,3 +38,6 @@ latent-choice-test:
 
 latent-choice-dry-run: latent-prompts
 	uv run python -m latent_choice.run baseline --dry-run --limit-prompts 2 --overwrite
+
+latent-choice-calibration: latent-prompts
+	uv run python -m latent_choice.exploratory_calibration
