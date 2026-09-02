@@ -1,0 +1,1057 @@
+{
+  "aggregate_endpoint_comparisons": {
+    "current_vs_newline": {
+      "median_jsd": 0.0006098349982678296,
+      "median_spearman": 0.9793601651186791,
+      "prompt_count": 24,
+      "top_domain_agreement": 0.9583333333333334,
+      "undefined_spearman_count": 0
+    },
+    "newline_flat_vs_hierarchy": {
+      "median_jsd": 0.10439126883597853,
+      "median_spearman": 0.5992300163950854,
+      "prompt_count": 24,
+      "top_domain_agreement": 0.5,
+      "undefined_spearman_count": 0
+    }
+  },
+  "artifact": "latent_choice_exploratory_endpoint_calibration",
+  "artifact_sha256": {
+    "calibration_forwards": "939abe4c457b3added679297505c229bb7b48f0e439b8018e2713062e9d3af55",
+    "calibration_rotation_averages": "ba47c72b2d1bd77124ce3874eeab1f69b83babcdbab11e667129bab287b6c2ba"
+  },
+  "batch_size": 2,
+  "calibration_id": "latent-choice-endpoint-calibration-exploratory-v1",
+  "calibration_recommendation": {
+    "interpretation": "No coded endpoint met the pre-run mapping-invariance rubric; do not create Latent Choice v2 from these calibration prompts.",
+    "preferred_endpoint_by_predeclared_simplicity": null,
+    "status": "stop_coded_choice"
+  },
+  "canonical_input_validation": {
+    "plan_path_and_sha256": true,
+    "prompt_manifest_path_and_sha256": true,
+    "v1_code_token_manifest_structure": true,
+    "v1_protocol_path_sha256_and_structure": true
+  },
+  "decision_position_count": 1296,
+  "endpoint_metrics": {
+    "flat_current": {
+      "candidate_mass": {
+        "count": 144,
+        "maximum": 0.7192201003553679,
+        "mean": 0.40524972950086036,
+        "median": 0.4059044777216554,
+        "minimum": 0.09595214701682094
+      },
+      "code_identity": {
+        "argmax_code_counts": {
+          "A": 4,
+          "B": 10,
+          "C": 5,
+          "D": 8,
+          "E": 8,
+          "F": 5,
+          "G": 12,
+          "H": 12,
+          "I": 7,
+          "J": 11,
+          "K": 9,
+          "L": 11,
+          "M": 4,
+          "N": 5,
+          "O": 10,
+          "P": 7,
+          "Q": 11,
+          "R": 5
+        },
+        "centered_logit_code_effect_sd": 0.5373210056407,
+        "centered_logit_mean_by_code": {
+          "A": 0.43877194251543217,
+          "B": 0.5351261091820988,
+          "C": 0.6883379147376543,
+          "D": 0.13647159529320985,
+          "E": 0.24324242862654322,
+          "F": -0.13436173804012347,
+          "G": 0.052704234182098755,
+          "H": 0.24910180362654324,
+          "I": 0.30661048418209874,
+          "J": 0.07310353973765431,
+          "K": -0.002634307484567907,
+          "L": 0.14927541473765432,
+          "M": -1.6640926408179013,
+          "N": -0.34030791859567905,
+          "O": 0.010169511959876525,
+          "P": -0.5781551408179012,
+          "Q": 0.5221052758487654,
+          "R": -0.6854685088734568
+        },
+        "mean_conditional_probability_by_code": {
+          "A": 0.025917323148115234,
+          "B": 0.06943241546806364,
+          "C": 0.039926502647475624,
+          "D": 0.05673720456740039,
+          "E": 0.05843459703203462,
+          "F": 0.03676953759861115,
+          "G": 0.08218116165965288,
+          "H": 0.08266670440366987,
+          "I": 0.04929392073728902,
+          "J": 0.07834291223184803,
+          "K": 0.059861544181272305,
+          "L": 0.07547947307933309,
+          "M": 0.02528934014371214,
+          "N": 0.03733368969197605,
+          "O": 0.07149381553645959,
+          "P": 0.0448373144136723,
+          "Q": 0.07096062081664965,
+          "R": 0.03504192264276447
+        },
+        "uniform_probability": 0.05555555555555555
+      },
+      "mapping_invariance": {
+        "fraction_unanimous_argmax": 0.4583333333333333,
+        "geometric_arithmetic_argmax_agreement": 1.0,
+        "leave_one_out_stable_prompt_count": 23,
+        "mean_modal_agreement": 0.8402777777777777,
+        "median_pairwise_jsd": 0.010518661829938963,
+        "median_pairwise_spearman": 0.6750965976896287,
+        "prompt_count": 24,
+        "prompts_with_at_least_4_of_6_modal_agreement": 22,
+        "strong_mapping_invariance": false,
+        "undefined_pairwise_spearman_count": 0
+      },
+      "top_unmasked_tokens": {
+        "candidate_appears_in_top20_fraction": 1.0,
+        "median_best_candidate_rank_when_present": 2.0,
+        "row_count": 144,
+        "top1_category_counts": {
+          "candidate": 40,
+          "other_token": 104
+        },
+        "top1_is_candidate_fraction": 0.2777777777777778,
+        "top_tokens_by_mean_probability_lower_bound": [
+          {
+            "decoded_text": "G",
+            "mean_probability_lower_bound": 0.054696560919435484,
+            "token_id": 235319,
+            "token_piece": "G",
+            "top20_occurrence_count": 76
+          },
+          {
+            "decoded_text": "H",
+            "mean_probability_lower_bound": 0.05066045997272158,
+            "token_id": 235314,
+            "token_piece": "H",
+            "top20_occurrence_count": 61
+          },
+          {
+            "decoded_text": "J",
+            "mean_probability_lower_bound": 0.04584247818388334,
+            "token_id": 235338,
+            "token_piece": "J",
+            "top20_occurrence_count": 57
+          },
+          {
+            "decoded_text": "B",
+            "mean_probability_lower_bound": 0.04524033025031053,
+            "token_id": 235305,
+            "token_piece": "B",
+            "top20_occurrence_count": 96
+          },
+          {
+            "decoded_text": "L",
+            "mean_probability_lower_bound": 0.042071465760290264,
+            "token_id": 235301,
+            "token_piece": "L",
+            "top20_occurrence_count": 58
+          },
+          {
+            "decoded_text": "Q",
+            "mean_probability_lower_bound": 0.04115232390769719,
+            "token_id": 235368,
+            "token_piece": "Q",
+            "top20_occurrence_count": 71
+          },
+          {
+            "decoded_text": "O",
+            "mean_probability_lower_bound": 0.0388500711553456,
+            "token_id": 235302,
+            "token_piece": "O",
+            "top20_occurrence_count": 58
+          },
+          {
+            "decoded_text": "K",
+            "mean_probability_lower_bound": 0.034369707418746814,
+            "token_id": 235333,
+            "token_piece": "K",
+            "top20_occurrence_count": 64
+          },
+          {
+            "decoded_text": " L",
+            "mean_probability_lower_bound": 0.033038385021467075,
+            "token_id": 629,
+            "token_piece": "\u2581L",
+            "top20_occurrence_count": 44
+          },
+          {
+            "decoded_text": "D",
+            "mean_probability_lower_bound": 0.032811036345934436,
+            "token_id": 235299,
+            "token_piece": "D",
+            "top20_occurrence_count": 78
+          },
+          {
+            "decoded_text": "C",
+            "mean_probability_lower_bound": 0.03234538923040321,
+            "token_id": 235288,
+            "token_piece": "C",
+            "top20_occurrence_count": 122
+          },
+          {
+            "decoded_text": " J",
+            "mean_probability_lower_bound": 0.03223025497807049,
+            "token_id": 713,
+            "token_piece": "\u2581J",
+            "top20_occurrence_count": 41
+          },
+          {
+            "decoded_text": "E",
+            "mean_probability_lower_bound": 0.03192445683427539,
+            "token_id": 235291,
+            "token_piece": "E",
+            "top20_occurrence_count": 91
+          },
+          {
+            "decoded_text": " O",
+            "mean_probability_lower_bound": 0.031606236310235784,
+            "token_id": 687,
+            "token_piece": "\u2581O",
+            "top20_occurrence_count": 54
+          },
+          {
+            "decoded_text": " H",
+            "mean_probability_lower_bound": 0.031203609456238995,
+            "token_id": 640,
+            "token_piece": "\u2581H",
+            "top20_occurrence_count": 48
+          },
+          {
+            "decoded_text": " G",
+            "mean_probability_lower_bound": 0.027817446533328398,
+            "token_id": 653,
+            "token_piece": "\u2581G",
+            "top20_occurrence_count": 42
+          },
+          {
+            "decoded_text": " Q",
+            "mean_probability_lower_bound": 0.027799245738973813,
+            "token_id": 1274,
+            "token_piece": "\u2581Q",
+            "top20_occurrence_count": 64
+          },
+          {
+            "decoded_text": " E",
+            "mean_probability_lower_bound": 0.026497583639868302,
+            "token_id": 637,
+            "token_piece": "\u2581E",
+            "top20_occurrence_count": 44
+          },
+          {
+            "decoded_text": " K",
+            "mean_probability_lower_bound": 0.02536816400813121,
+            "token_id": 747,
+            "token_piece": "\u2581K",
+            "top20_occurrence_count": 46
+          },
+          {
+            "decoded_text": " I",
+            "mean_probability_lower_bound": 0.025340510282672472,
+            "token_id": 590,
+            "token_piece": "\u2581I",
+            "top20_occurrence_count": 55
+          }
+        ]
+      }
+    },
+    "flat_newline": {
+      "candidate_mass": {
+        "count": 144,
+        "maximum": 0.9990930121338621,
+        "mean": 0.9942801027543025,
+        "median": 0.9949035256152199,
+        "minimum": 0.9841061678026969
+      },
+      "code_identity": {
+        "argmax_code_counts": {
+          "A": 3,
+          "B": 10,
+          "C": 7,
+          "D": 8,
+          "E": 10,
+          "F": 7,
+          "G": 12,
+          "H": 11,
+          "I": 7,
+          "J": 10,
+          "K": 9,
+          "L": 10,
+          "M": 4,
+          "N": 5,
+          "O": 9,
+          "P": 8,
+          "Q": 9,
+          "R": 5
+        },
+        "centered_logit_code_effect_sd": 0.5436240606966873,
+        "centered_logit_mean_by_code": {
+          "A": 0.306568287037037,
+          "B": 0.7340856481481481,
+          "C": 1.0765335648148149,
+          "D": 0.03226273148148148,
+          "E": 0.35083912037037035,
+          "F": 0.14207175925925927,
+          "G": 0.5860821759259259,
+          "H": 0.2397280092592592,
+          "I": -0.03327546296296299,
+          "J": -0.14937789351851855,
+          "K": -0.3859230324074074,
+          "L": 0.1637731481481481,
+          "M": -1.053240740740741,
+          "N": -0.6597945601851852,
+          "O": -0.7320601851851852,
+          "P": -0.5660445601851852,
+          "Q": 0.4103009259259259,
+          "R": -0.46252893518518523
+        },
+        "mean_conditional_probability_by_code": {
+          "A": 0.02180920878261267,
+          "B": 0.06835169580294109,
+          "C": 0.04899841914623113,
+          "D": 0.0561810978545344,
+          "E": 0.06742258741081236,
+          "F": 0.044984208449260175,
+          "G": 0.0805919367874135,
+          "H": 0.0788781576314342,
+          "I": 0.04949901204673634,
+          "J": 0.07095317680767982,
+          "K": 0.06205323465864321,
+          "L": 0.07475869361296891,
+          "M": 0.027454078088231946,
+          "N": 0.03622250769305493,
+          "O": 0.0666482321926855,
+          "P": 0.05115781502247885,
+          "Q": 0.060927424760677695,
+          "R": 0.0331085132516033
+        },
+        "uniform_probability": 0.05555555555555555
+      },
+      "mapping_invariance": {
+        "fraction_unanimous_argmax": 0.4166666666666667,
+        "geometric_arithmetic_argmax_agreement": 1.0,
+        "leave_one_out_stable_prompt_count": 23,
+        "mean_modal_agreement": 0.8680555555555557,
+        "median_pairwise_jsd": 0.008894195615064713,
+        "median_pairwise_spearman": 0.6480495091500558,
+        "prompt_count": 24,
+        "prompts_with_at_least_4_of_6_modal_agreement": 24,
+        "strong_mapping_invariance": false,
+        "undefined_pairwise_spearman_count": 0
+      },
+      "top_unmasked_tokens": {
+        "candidate_appears_in_top20_fraction": 1.0,
+        "median_best_candidate_rank_when_present": 1.0,
+        "row_count": 144,
+        "top1_category_counts": {
+          "candidate": 144
+        },
+        "top1_is_candidate_fraction": 1.0,
+        "top_tokens_by_mean_probability_lower_bound": [
+          {
+            "decoded_text": "G",
+            "mean_probability_lower_bound": 0.08012523886821796,
+            "token_id": 235319,
+            "token_piece": "G",
+            "top20_occurrence_count": 79
+          },
+          {
+            "decoded_text": "H",
+            "mean_probability_lower_bound": 0.0783355754615465,
+            "token_id": 235314,
+            "token_piece": "H",
+            "top20_occurrence_count": 64
+          },
+          {
+            "decoded_text": "L",
+            "mean_probability_lower_bound": 0.07450980028739422,
+            "token_id": 235301,
+            "token_piece": "L",
+            "top20_occurrence_count": 59
+          },
+          {
+            "decoded_text": "J",
+            "mean_probability_lower_bound": 0.07055100520090037,
+            "token_id": 235338,
+            "token_piece": "J",
+            "top20_occurrence_count": 54
+          },
+          {
+            "decoded_text": "B",
+            "mean_probability_lower_bound": 0.06784169985545832,
+            "token_id": 235305,
+            "token_piece": "B",
+            "top20_occurrence_count": 105
+          },
+          {
+            "decoded_text": "E",
+            "mean_probability_lower_bound": 0.06716900224863342,
+            "token_id": 235291,
+            "token_piece": "E",
+            "top20_occurrence_count": 80
+          },
+          {
+            "decoded_text": "O",
+            "mean_probability_lower_bound": 0.06623889711275213,
+            "token_id": 235302,
+            "token_piece": "O",
+            "top20_occurrence_count": 49
+          },
+          {
+            "decoded_text": "K",
+            "mean_probability_lower_bound": 0.06166988645799963,
+            "token_id": 235333,
+            "token_piece": "K",
+            "top20_occurrence_count": 46
+          },
+          {
+            "decoded_text": "Q",
+            "mean_probability_lower_bound": 0.06043372684610218,
+            "token_id": 235368,
+            "token_piece": "Q",
+            "top20_occurrence_count": 78
+          },
+          {
+            "decoded_text": "D",
+            "mean_probability_lower_bound": 0.05590894327765758,
+            "token_id": 235299,
+            "token_piece": "D",
+            "top20_occurrence_count": 71
+          },
+          {
+            "decoded_text": "P",
+            "mean_probability_lower_bound": 0.05090838661988404,
+            "token_id": 235295,
+            "token_piece": "P",
+            "top20_occurrence_count": 53
+          },
+          {
+            "decoded_text": "I",
+            "mean_probability_lower_bound": 0.049077526663296865,
+            "token_id": 235285,
+            "token_piece": "I",
+            "top20_occurrence_count": 58
+          },
+          {
+            "decoded_text": "C",
+            "mean_probability_lower_bound": 0.04876033695994221,
+            "token_id": 235288,
+            "token_piece": "C",
+            "top20_occurrence_count": 121
+          },
+          {
+            "decoded_text": "F",
+            "mean_probability_lower_bound": 0.04470861464802904,
+            "token_id": 235311,
+            "token_piece": "F",
+            "top20_occurrence_count": 75
+          },
+          {
+            "decoded_text": "N",
+            "mean_probability_lower_bound": 0.03608138671147057,
+            "token_id": 235300,
+            "token_piece": "N",
+            "top20_occurrence_count": 54
+          },
+          {
+            "decoded_text": "R",
+            "mean_probability_lower_bound": 0.032927214690783045,
+            "token_id": 235294,
+            "token_piece": "R",
+            "top20_occurrence_count": 55
+          },
+          {
+            "decoded_text": "M",
+            "mean_probability_lower_bound": 0.027320431034441973,
+            "token_id": 235296,
+            "token_piece": "M",
+            "top20_occurrence_count": 33
+          },
+          {
+            "decoded_text": "A",
+            "mean_probability_lower_bound": 0.02157789270783718,
+            "token_id": 235280,
+            "token_piece": "A",
+            "top20_occurrence_count": 115
+          },
+          {
+            "decoded_text": "```",
+            "mean_probability_lower_bound": 0.0005671459797836337,
+            "token_id": 1917,
+            "token_piece": "```",
+            "top20_occurrence_count": 144
+          },
+          {
+            "decoded_text": " H",
+            "mean_probability_lower_bound": 0.00037174035129201855,
+            "token_id": 640,
+            "token_piece": "\u2581H",
+            "top20_occurrence_count": 15
+          }
+        ]
+      }
+    },
+    "hierarchical_newline": {
+      "group_candidate_mass": {
+        "count": 144,
+        "maximum": 0.9989925245478102,
+        "mean": 0.9947721564424334,
+        "median": 0.9965210513301486,
+        "minimum": 0.9748145942663721
+      },
+      "group_code_identity": {
+        "argmax_code_counts": {
+          "A": 20,
+          "B": 24,
+          "C": 25,
+          "D": 26,
+          "E": 24,
+          "F": 25
+        },
+        "centered_logit_code_effect_sd": 0.6685064228404247,
+        "centered_logit_mean_by_code": {
+          "A": -1.304398148148148,
+          "B": -0.07653356481481478,
+          "C": -0.1642071759259259,
+          "D": 0.1982060185185185,
+          "E": 0.6925636574074076,
+          "F": 0.6543692129629631
+        },
+        "mean_conditional_probability_by_code": {
+          "A": 0.133965974675407,
+          "B": 0.17172683664423177,
+          "C": 0.17374798909322364,
+          "D": 0.1778671916861413,
+          "E": 0.16729075227668982,
+          "F": 0.17540125562430647
+        },
+        "uniform_probability": 0.16666666666666666
+      },
+      "group_top_unmasked_tokens": {
+        "candidate_appears_in_top20_fraction": 1.0,
+        "median_best_candidate_rank_when_present": 1.0,
+        "row_count": 144,
+        "top1_category_counts": {
+          "candidate": 144
+        },
+        "top1_is_candidate_fraction": 1.0,
+        "top_tokens_by_mean_probability_lower_bound": [
+          {
+            "decoded_text": "D",
+            "mean_probability_lower_bound": 0.17710482377395687,
+            "token_id": 235299,
+            "token_piece": "D",
+            "top20_occurrence_count": 118
+          },
+          {
+            "decoded_text": "F",
+            "mean_probability_lower_bound": 0.17483184323434542,
+            "token_id": 235311,
+            "token_piece": "F",
+            "top20_occurrence_count": 130
+          },
+          {
+            "decoded_text": "C",
+            "mean_probability_lower_bound": 0.17312359161622562,
+            "token_id": 235288,
+            "token_piece": "C",
+            "top20_occurrence_count": 130
+          },
+          {
+            "decoded_text": "B",
+            "mean_probability_lower_bound": 0.17043202756846837,
+            "token_id": 235305,
+            "token_piece": "B",
+            "top20_occurrence_count": 142
+          },
+          {
+            "decoded_text": "E",
+            "mean_probability_lower_bound": 0.16688007444354835,
+            "token_id": 235291,
+            "token_piece": "E",
+            "top20_occurrence_count": 137
+          },
+          {
+            "decoded_text": "A",
+            "mean_probability_lower_bound": 0.13239533114680743,
+            "token_id": 235280,
+            "token_piece": "A",
+            "top20_occurrence_count": 109
+          },
+          {
+            "decoded_text": " A",
+            "mean_probability_lower_bound": 0.0010411190096790202,
+            "token_id": 586,
+            "token_piece": "\u2581A",
+            "top20_occurrence_count": 22
+          },
+          {
+            "decoded_text": " B",
+            "mean_probability_lower_bound": 0.0007935520241557147,
+            "token_id": 599,
+            "token_piece": "\u2581B",
+            "top20_occurrence_count": 29
+          },
+          {
+            "decoded_text": " D",
+            "mean_probability_lower_bound": 0.0004466629097946285,
+            "token_id": 608,
+            "token_piece": "\u2581D",
+            "top20_occurrence_count": 32
+          },
+          {
+            "decoded_text": "  ",
+            "mean_probability_lower_bound": 0.0003833213020080652,
+            "token_id": 139,
+            "token_piece": "\u2581\u2581",
+            "top20_occurrence_count": 144
+          },
+          {
+            "decoded_text": " F",
+            "mean_probability_lower_bound": 0.00032408761534700965,
+            "token_id": 633,
+            "token_piece": "\u2581F",
+            "top20_occurrence_count": 28
+          },
+          {
+            "decoded_text": " C",
+            "mean_probability_lower_bound": 0.00030745471346647733,
+            "token_id": 585,
+            "token_piece": "\u2581C",
+            "top20_occurrence_count": 27
+          },
+          {
+            "decoded_text": "```",
+            "mean_probability_lower_bound": 0.00028964344792057456,
+            "token_id": 1917,
+            "token_piece": "```",
+            "top20_occurrence_count": 144
+          },
+          {
+            "decoded_text": " E",
+            "mean_probability_lower_bound": 0.00028401064773796777,
+            "token_id": 637,
+            "token_piece": "\u2581E",
+            "top20_occurrence_count": 26
+          },
+          {
+            "decoded_text": "\t",
+            "mean_probability_lower_bound": 0.0002086869957937925,
+            "token_id": 226,
+            "token_piece": "\t",
+            "top20_occurrence_count": 144
+          },
+          {
+            "decoded_text": " ",
+            "mean_probability_lower_bound": 0.0001318027139983964,
+            "token_id": 235248,
+            "token_piece": "\u2581",
+            "top20_occurrence_count": 144
+          },
+          {
+            "decoded_text": "\\",
+            "mean_probability_lower_bound": 0.00011101442500966145,
+            "token_id": 235286,
+            "token_piece": "\\",
+            "top20_occurrence_count": 144
+          },
+          {
+            "decoded_text": "<end_of_turn>",
+            "mean_probability_lower_bound": 8.054547069432498e-05,
+            "token_id": 107,
+            "token_piece": "<end_of_turn>",
+            "top20_occurrence_count": 87
+          },
+          {
+            "decoded_text": "<eos>",
+            "mean_probability_lower_bound": 6.815443239972061e-05,
+            "token_id": 1,
+            "token_piece": "<eos>",
+            "top20_occurrence_count": 144
+          },
+          {
+            "decoded_text": "**",
+            "mean_probability_lower_bound": 5.3829974470948286e-05,
+            "token_id": 688,
+            "token_piece": "**",
+            "top20_occurrence_count": 141
+          }
+        ]
+      },
+      "mapping_invariance": {
+        "fraction_unanimous_argmax": 0.625,
+        "geometric_arithmetic_argmax_agreement": 1.0,
+        "leave_one_out_stable_prompt_count": 21,
+        "mean_modal_agreement": 0.875,
+        "median_pairwise_jsd": 0.007241544686025409,
+        "median_pairwise_spearman": 0.7574819401444788,
+        "prompt_count": 24,
+        "prompts_with_at_least_4_of_6_modal_agreement": 22,
+        "strong_mapping_invariance": false,
+        "undefined_pairwise_spearman_count": 0
+      },
+      "probability_weighted_subdomain_candidate_mass": {
+        "count": 144,
+        "maximum": 0.998726560804881,
+        "mean": 0.9937218448233344,
+        "median": 0.9944473609660293,
+        "minimum": 0.9842612511774516
+      },
+      "subdomain_candidate_mass": {
+        "count": 864,
+        "maximum": 0.9988724326791699,
+        "mean": 0.9917302840093727,
+        "median": 0.9920860089583317,
+        "minimum": 0.9775784620595626
+      },
+      "subdomain_code_identity": {
+        "argmax_code_counts": {
+          "A": 325,
+          "B": 212,
+          "C": 327
+        },
+        "centered_logit_code_effect_sd": 0.5927149593322226,
+        "centered_logit_mean_by_code": {
+          "A": -0.1771556712962963,
+          "B": -0.6209490740740741,
+          "C": 0.7981047453703703
+        },
+        "mean_conditional_probability_by_code": {
+          "A": 0.36672437531508734,
+          "B": 0.2518919998065387,
+          "C": 0.3813836248783741
+        },
+        "uniform_probability": 0.3333333333333333
+      },
+      "subdomain_top_unmasked_tokens": {
+        "candidate_appears_in_top20_fraction": 1.0,
+        "median_best_candidate_rank_when_present": 1.0,
+        "row_count": 864,
+        "top1_category_counts": {
+          "candidate": 864
+        },
+        "top1_is_candidate_fraction": 1.0,
+        "top_tokens_by_mean_probability_lower_bound": [
+          {
+            "decoded_text": "C",
+            "mean_probability_lower_bound": 0.37855996229051136,
+            "token_id": 235288,
+            "token_piece": "C",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": "A",
+            "mean_probability_lower_bound": 0.36345739694561324,
+            "token_id": 235280,
+            "token_piece": "A",
+            "top20_occurrence_count": 862
+          },
+          {
+            "decoded_text": "B",
+            "mean_probability_lower_bound": 0.24971291503551746,
+            "token_id": 235305,
+            "token_piece": "B",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": " A",
+            "mean_probability_lower_bound": 0.0019874410567158056,
+            "token_id": 586,
+            "token_piece": "\u2581A",
+            "top20_occurrence_count": 546
+          },
+          {
+            "decoded_text": " C",
+            "mean_probability_lower_bound": 0.0012553131079761238,
+            "token_id": 585,
+            "token_piece": "\u2581C",
+            "top20_occurrence_count": 707
+          },
+          {
+            "decoded_text": " B",
+            "mean_probability_lower_bound": 0.0010995198957740775,
+            "token_id": 599,
+            "token_piece": "\u2581B",
+            "top20_occurrence_count": 477
+          },
+          {
+            "decoded_text": "<end_of_turn>",
+            "mean_probability_lower_bound": 0.0006452381068685979,
+            "token_id": 107,
+            "token_piece": "<end_of_turn>",
+            "top20_occurrence_count": 848
+          },
+          {
+            "decoded_text": "  ",
+            "mean_probability_lower_bound": 0.0004963074796626764,
+            "token_id": 139,
+            "token_piece": "\u2581\u2581",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": "```",
+            "mean_probability_lower_bound": 0.00032415377528256236,
+            "token_id": 1917,
+            "token_piece": "```",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": "\t",
+            "mean_probability_lower_bound": 0.00025168953477331524,
+            "token_id": 226,
+            "token_piece": "\t",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": "<eos>",
+            "mean_probability_lower_bound": 0.0002451567931842198,
+            "token_id": 1,
+            "token_piece": "<eos>",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": "\\",
+            "mean_probability_lower_bound": 0.00012101247674618014,
+            "token_id": 235286,
+            "token_piece": "\\",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": " ",
+            "mean_probability_lower_bound": 0.000112386867375562,
+            "token_id": 235248,
+            "token_piece": "\u2581",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": "   ",
+            "mean_probability_lower_bound": 8.781235880839976e-05,
+            "token_id": 140,
+            "token_piece": "\u2581\u2581\u2581",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": "**",
+            "mean_probability_lower_bound": 7.903086787269867e-05,
+            "token_id": 688,
+            "token_piece": "**",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": "    ",
+            "mean_probability_lower_bound": 7.67417812593205e-05,
+            "token_id": 141,
+            "token_piece": "\u2581\u2581\u2581\u2581",
+            "top20_occurrence_count": 864
+          },
+          {
+            "decoded_text": "     ",
+            "mean_probability_lower_bound": 5.0258952779282675e-05,
+            "token_id": 142,
+            "token_piece": "\u2581\u2581\u2581\u2581\u2581",
+            "top20_occurrence_count": 842
+          },
+          {
+            "decoded_text": "Sociology",
+            "mean_probability_lower_bound": 2.900093870648996e-05,
+            "token_id": 231332,
+            "token_piece": "Sociology",
+            "top20_occurrence_count": 76
+          },
+          {
+            "decoded_text": "\u00a0",
+            "mean_probability_lower_bound": 2.3105710335244604e-05,
+            "token_id": 236338,
+            "token_piece": "\u00a0",
+            "top20_occurrence_count": 554
+          },
+          {
+            "decoded_text": " sociology",
+            "mean_probability_lower_bound": 1.903056511389563e-05,
+            "token_id": 87443,
+            "token_piece": "\u2581sociology",
+            "top20_occurrence_count": 52
+          }
+        ]
+      },
+      "two_stage_candidate_path_mass": {
+        "count": 144,
+        "maximum": 0.9973921030903442,
+        "mean": 0.9885299752662912,
+        "median": 0.9899641739240335,
+        "minimum": 0.9622007573965167
+      }
+    }
+  },
+  "environment_lock_sha256": "2ac8aa4d386d47e2a6ceb523aa735c01965c7656f103d564a2ac87bbbdd228a1",
+  "exploratory_not_preregistered": true,
+  "forward_counts_by_arm_and_stage": {
+    "flat_current:flat": 144,
+    "flat_newline:flat": 144,
+    "hierarchical_newline:group": 144,
+    "hierarchical_newline:subdomain": 864
+  },
+  "model_batch_forward_count": 648,
+  "model_repo_id": "google/gemma-2-9b-it",
+  "model_revision": "11c9b309abf73637e4b6f9a3fa1e92e615547819",
+  "paired_prefix_mass_change": {
+    "bootstrap_95_percent_high": 5.969850243646406,
+    "bootstrap_95_percent_low": 5.479191806001344,
+    "bootstrap_draws": 10000,
+    "mean_newline_minus_current_logit_mass": 5.7207804485153675,
+    "prompt_count": 24
+  },
+  "plan_sha256": "5a057102cfb1fc918afec1ada92a39b2060c149eb2e1e313e26e7cd56449fa3c",
+  "post_run_git_commit": "33d7804711fd9a68cf4823d9f196c25a308cc07a",
+  "post_run_working_tree_dirty": false,
+  "pre_run_git_commit": "33d7804711fd9a68cf4823d9f196c25a308cc07a",
+  "pre_run_working_tree_dirty": false,
+  "prompt_manifest_sha256": "18100b8a28777539737e5a33b1c00bbccd5da35dd3325828399a5d5e426d5b98",
+  "protocol_sha256": "06023e7551795726753787e1531fade5f48fafbfb1ddf278c8760fb5dfa8924f",
+  "rotation_count_per_prompt": 6,
+  "runtime": {
+    "accelerate": "1.14.0",
+    "cuda_runtime": "12.6",
+    "gpu": "NVIDIA A100-SXM4-40GB",
+    "huggingface_hub": "0.36.2",
+    "python": "3.10.18",
+    "torch": "2.7.1+cu126",
+    "transformers": "4.57.6"
+  },
+  "sae_feature_association_computed": false,
+  "sae_intervention_performed": false,
+  "sae_repo_id_loaded_but_not_analyzed": "google/gemma-scope-9b-it-res",
+  "sae_revision": "e86af97a5b6fbbccca28ab654f2fda1b0768f770",
+  "sae_sha256": "bbd770b6f8b92a2fe7498e05bd6274c6cfa89ebc08fb972c0e842840737f1a82",
+  "schema_version": "1.0",
+  "selected_prompt_count": 24,
+  "selected_prompt_ids": [
+    "le-114",
+    "le-030",
+    "le-029",
+    "le-038",
+    "le-052",
+    "le-192",
+    "le-187",
+    "le-065",
+    "le-056",
+    "le-134",
+    "le-174",
+    "le-104",
+    "le-149",
+    "le-191",
+    "le-110",
+    "le-196",
+    "le-014",
+    "le-129",
+    "le-095",
+    "le-117",
+    "le-024",
+    "le-002",
+    "le-036",
+    "le-138"
+  ],
+  "split": "development",
+  "status": "complete",
+  "test_split_generated_or_scored": false,
+  "token_boundary_validation": {
+    "flat_current:flat": {
+      "context_count": 144,
+      "distinct_token_id_maps": 1,
+      "token_id_maps": [
+        {
+          "A": 586,
+          "B": 599,
+          "C": 585,
+          "D": 608,
+          "E": 637,
+          "F": 633,
+          "G": 653,
+          "H": 640,
+          "I": 590,
+          "J": 713,
+          "K": 747,
+          "L": 629,
+          "M": 595,
+          "N": 646,
+          "O": 687,
+          "P": 596,
+          "Q": 1274,
+          "R": 625
+        }
+      ],
+      "token_ids_constant_across_contexts": true
+    },
+    "flat_newline:flat": {
+      "context_count": 144,
+      "distinct_token_id_maps": 1,
+      "token_id_maps": [
+        {
+          "A": 235280,
+          "B": 235305,
+          "C": 235288,
+          "D": 235299,
+          "E": 235291,
+          "F": 235311,
+          "G": 235319,
+          "H": 235314,
+          "I": 235285,
+          "J": 235338,
+          "K": 235333,
+          "L": 235301,
+          "M": 235296,
+          "N": 235300,
+          "O": 235302,
+          "P": 235295,
+          "Q": 235368,
+          "R": 235294
+        }
+      ],
+      "token_ids_constant_across_contexts": true
+    },
+    "hierarchical_newline:group": {
+      "context_count": 144,
+      "distinct_token_id_maps": 1,
+      "token_id_maps": [
+        {
+          "A": 235280,
+          "B": 235305,
+          "C": 235288,
+          "D": 235299,
+          "E": 235291,
+          "F": 235311
+        }
+      ],
+      "token_ids_constant_across_contexts": true
+    },
+    "hierarchical_newline:subdomain": {
+      "context_count": 864,
+      "distinct_token_id_maps": 1,
+      "token_id_maps": [
+        {
+          "A": 235280,
+          "B": 235305,
+          "C": 235288
+        }
+      ],
+      "token_ids_constant_across_contexts": true
+    }
+  }
+}

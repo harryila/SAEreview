@@ -10,10 +10,12 @@ autoencoders (SAEs) and cross-domain analogy:
    [`v0.2-measurement-gate-failure`](https://github.com/harryila/SAEreview/releases/tag/v0.2-measurement-gate-failure).
    BART and the accepted AI rater agreed on only 18/64 audit items, so the study
    stopped before feature discovery or any hypothesis-testing intervention.
-3. **Latent Choice — frozen at its choice-compliance gate.** Its real 80-prompt
-   development baseline completed, but only 13/80 prompts met the frozen
-   candidate-code probability-mass floor. It therefore stopped before feature
-   discovery or intervention; see [`latent_choice/`](latent_choice/README.md).
+3. **Latent Choice — coded endpoint stopped.** Its frozen v1 baseline failed the
+   choice-compliance gate. A subsequent explicitly exploratory calibration
+   showed that newline alignment fixes code mass, but none of the three tested
+   endpoints met the pre-run mapping-invariance rubric. It therefore remains
+   stopped before feature discovery or intervention; see
+   [`latent_choice/`](latent_choice/README.md).
 
 The retrieval result motivates the pivot but is **not** evidence for the new
 generation hypothesis.
@@ -90,9 +92,19 @@ test. See the [frozen protocol and audit report](latent_escape/README.md).
 The distinct Latent Choice successor then tested an explicit domain-choice
 measurement, without reusing the failed audit. Its pre-feature compliance gate
 also stopped the study: the exact letter-code action did not receive enough
-unmasked next-token probability on enough development prompts. This is a
-measurement result, not a test of the SAE causal hypothesis; no feature-domain
-association or study intervention was run.
+unmasked next-token probability on enough development prompts.
+
+A 24-prompt, development-only endpoint calibration then located the formatting
+failure precisely: in all 144 original-prefix rotation trials, the top token was
+either a raw letter (104) or the allowed leading-space letter (40). Moving the
+choice to the next line raised mean allowed-code mass from 40.5% to 99.4%.
+However, the original and newline flat endpoints missed the 0.70 median
+within-prompt rank-correlation rubric (0.675 and 0.648), while the hierarchy
+passed rank correlation (0.757) but missed leave-one-rotation-out stability by
+one prompt (21/24 versus 22/24). Per the pre-run rule, coded-domain choice is
+stopped rather than retuned. This remains a measurement result, not a test of
+the SAE causal hypothesis; no feature-domain association or study intervention
+was run, and the confirmatory split remains untouched.
 
 ## License and attribution
 

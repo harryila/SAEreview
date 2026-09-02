@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import math
 from types import SimpleNamespace
+from pathlib import Path
+import hashlib
+import json
 
 import pytest
 import torch
@@ -210,3 +213,23 @@ def test_batched_scoring_uses_each_exact_left_padded_prompt() -> None:
     assert model.calls == batch_calls == 1
     assert [record["argmax_label"] for record in records] == ["second", "second"]
     assert boundary["synthetic:flat"]["context_count"] == 2
+
+
+def test_committed_calibration_is_the_verified_coded_choice_stop() -> None:
+    result_dir = Path(__file__).resolve().parents[1] / "results" / "exploratory_calibration"
+    report_path = result_dir / "calibration_report.json"
+    forwards_path = result_dir / "calibration_forwards.jsonl"
+    averages_path = result_dir / "calibration_rotation_averages.jsonl"
+    verification = json.loads((result_dir / "calibration_verification.json").read_text())
+    report = json.loads(report_path.read_text())
+    digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+    assert digest(report_path) == verification["artifact_sha256"]["calibration_report"]
+    assert digest(forwards_path) == verification["artifact_sha256"]["calibration_forwards"]
+    assert digest(averages_path) == verification["artifact_sha256"][
+        "calibration_rotation_averages"
+    ]
+    assert sum(1 for line in forwards_path.read_text().splitlines() if line) == 1296
+    assert sum(1 for line in averages_path.read_text().splitlines() if line) == 72
+    assert report["calibration_recommendation"]["status"] == "stop_coded_choice"
+    assert report["test_split_generated_or_scored"] is False
+    assert verification["independent_checks"]["test_prompt_overlap_count"] == 0
