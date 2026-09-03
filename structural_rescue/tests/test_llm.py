@@ -25,6 +25,7 @@ from structural_rescue.run import (
     capacity_smoke_report,
     evaluate_command,
     FixtureBackend,
+    frozen_real_selection_kind,
     PREPARED_FILENAMES,
     extract_mechanisms,
     matched_feature_contexts,
@@ -491,6 +492,7 @@ def test_capacity_smoke_report_is_frozen_and_required(tmp_path) -> None:
             "prompt_version": PROMPT_VERSION,
             "generation_git_commit": "frozen-commit",
             "generation_git_worktree_dirty": False,
+            "mechanisms_sha256": "a" * 64,
         },
         selection_path=selection_path,
         batch_plan_path=batch_plan_path,
@@ -540,6 +542,23 @@ def test_real_partial_evaluation_is_rejected_before_qrels_are_needed(tmp_path) -
             output_dir=tmp_path,
             overwrite=False,
         )
+
+
+def test_real_selection_is_classified_by_frozen_hash_not_path(tmp_path) -> None:
+    screen = tmp_path / "screen_selection.json"
+    capacity = tmp_path / "capacity_smoke_selection.json"
+    copied_screen = tmp_path / "copied-screen.json"
+    unknown = tmp_path / "unknown.json"
+    screen.write_text('{"query_ids":["q1","q2"]}\n', encoding="utf-8")
+    capacity.write_text('{"query_ids":["q1"]}\n', encoding="utf-8")
+    copied_screen.write_text(screen.read_text(encoding="utf-8"), encoding="utf-8")
+    unknown.write_text('{"query_ids":["q3"]}\n', encoding="utf-8")
+    assert (
+        frozen_real_selection_kind(copied_screen, output_dir=tmp_path)
+        == "screen"
+    )
+    assert frozen_real_selection_kind(capacity, output_dir=tmp_path) == "capacity"
+    assert frozen_real_selection_kind(unknown, output_dir=tmp_path) is None
 
 
 def test_prepared_bundle_rejects_tampered_artifact(tmp_path) -> None:

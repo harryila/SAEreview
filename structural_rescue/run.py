@@ -467,6 +467,22 @@ def selected_candidates(
     return [by_id[query_id] for query_id in selected_ids]
 
 
+def frozen_real_selection_kind(
+    selection_path: Path, *, output_dir: Path
+) -> str | None:
+    """Classify a real-run selection by frozen bytes, never by path identity."""
+
+    selected_hash = sha256_file(selection_path)
+    frozen_paths = {
+        "screen": output_dir / "screen_selection.json",
+        "capacity": output_dir / "capacity_smoke_selection.json",
+    }
+    for kind, path in frozen_paths.items():
+        if path.exists() and selected_hash == sha256_file(path):
+            return kind
+    return None
+
+
 def _stage_request_hash(
     *,
     backend,
@@ -556,6 +572,15 @@ def extract_mechanisms(
     rows_by_id = load_rows_by_id(data_path)
     generation_commit, generation_dirty = git_state()
     require_clean_real_backend(backend, dirty=generation_dirty)
+    if backend.model == MODEL:
+        selection_kind = frozen_real_selection_kind(
+            selection_path, output_dir=output_path.parent
+        )
+        if selection_kind is None or limit_queries is not None:
+            raise ValueError(
+                "Real extraction permits only the complete frozen capacity or "
+                "screen selection without --limit-queries"
+            )
     existing = _read_existing(output_path, "system_id", overwrite=overwrite)
     for batch in batched(sorted(batch_universe_ids), MECHANISM_BATCH_SIZE):
         if required_ids.isdisjoint(batch):
@@ -918,6 +943,15 @@ def validate_capacity_smoke_report(
         "prompt": report.get("prompt_version") == PROMPT_VERSION,
         "git_commit": report.get("generation_git_commit") == current_git_commit,
         "clean_generation": report.get("generation_git_worktree_dirty") is False,
+        "mechanism_hash_recorded": (
+            len(str(report.get("mechanisms_sha256_at_smoke", ""))) == 64
+            and all(
+                character in "0123456789abcdef"
+                for character in str(
+                    report.get("mechanisms_sha256_at_smoke", "")
+                )
+            )
+        ),
     }
     failed = sorted(name for name, passed in checks.items() if not passed)
     if failed:
@@ -970,6 +1004,7 @@ def capacity_smoke_report(
         "generation_git_worktree_dirty": verify_report[
             "generation_git_worktree_dirty"
         ],
+        "mechanisms_sha256_at_smoke": verify_report["mechanisms_sha256"],
         "claim_boundary": (
             "This qrels-free report validates request capacity and schema "
             "completion only; it is not a verifier or retrieval result."
@@ -984,6 +1019,7 @@ def validate_verify_report(
     predictions: Sequence[Mapping[str, Any]],
     selection_path: Path,
     batch_plan_path: Path,
+    mechanisms_path: Path,
     feature_descriptions_path: Path,
     feature_shuffle_path: Path,
     current_git_commit: str,
@@ -1002,6 +1038,7 @@ def validate_verify_report(
         "selection_sha256": sha256_file(selection_path),
         "batch_plan_sha256": sha256_file(batch_plan_path),
         "feature_descriptions_sha256": sha256_file(feature_descriptions_path),
+        "mechanisms_sha256": sha256_file(mechanisms_path),
         "feature_description_shuffle_map_sha256": sha256_file(feature_shuffle_path),
         "output_sha256": sha256_file(predictions_path),
         "prompt_version": PROMPT_VERSION,
@@ -1091,6 +1128,16 @@ def verify_pairs(
     )
     generation_commit, generation_dirty = git_state()
     require_clean_real_backend(backend, dirty=generation_dirty)
+    selection_kind = frozen_real_selection_kind(
+        selection_path, output_dir=feature_shuffle_path.parent
+    )
+    if backend.model == MODEL and (
+        selection_kind is None or limit_queries is not None
+    ):
+        raise ValueError(
+            "Real verification permits only the complete frozen capacity or "
+            "screen selection without --limit-queries"
+        )
     if backend.model == MODEL:
         coverage_path = feature_shuffle_path.parent / "coverage_report.json"
         validate_coverage_report(
@@ -1109,11 +1156,7 @@ def verify_pairs(
     }
     if len(plan_by_query) != len(batch_plan["queries"]):
         raise ValueError("Duplicate query IDs in verifier batch plan")
-    frozen_screen_path = feature_shuffle_path.parent / "screen_selection.json"
-    if (
-        backend.model == MODEL
-        and selection_path.resolve() == frozen_screen_path.resolve()
-    ):
+    if backend.model == MODEL and selection_kind == "screen":
         validate_capacity_smoke_report(
             feature_shuffle_path.parent / "capacity_smoke_report.json",
             capacity_selection_path=feature_shuffle_path.parent
@@ -1432,6 +1475,7 @@ def verify_pairs(
         "selection_sha256": sha256_file(selection_path),
         "batch_plan_sha256": batch_plan_sha256,
         "feature_descriptions_sha256": sha256_file(feature_descriptions_path),
+        "mechanisms_sha256": sha256_file(mechanisms_path),
         "prompt_version": PROMPT_VERSION,
         "generation_git_commit": generation_commit,
         "generation_git_worktree_dirty": generation_dirty,
@@ -1528,6 +1572,7 @@ def evaluate_command(
         predictions=predictions,
         selection_path=selection_path,
         batch_plan_path=output_dir / "verifier_batch_plan.json",
+        mechanisms_path=output_dir / "mechanisms.jsonl",
         feature_descriptions_path=output_dir / "feature_descriptions.jsonl",
         feature_shuffle_path=output_dir
         / "feature_description_shuffle_map.json",
@@ -1763,7 +1808,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if (
             args.command == "verify"
             and args.backend == "openai"
-            and selection_path.resolve() == paths["capacity_selection"].resolve()
+            and frozen_real_selection_kind(
+                selection_path, output_dir=args.output_dir
+            )
+            == "capacity"
         ):
             report = capacity_smoke_report(
                 report,
