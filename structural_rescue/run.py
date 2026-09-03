@@ -49,6 +49,14 @@ from .llm import (
 
 MECHANISM_BATCH_SIZE = 8
 FEATURE_BATCH_SIZE = 8
+PREPARED_FILENAMES = {
+    "candidate_manifest": "candidate_manifest.jsonl",
+    "qrels_sidecar": "qrels_sidecar.jsonl",
+    "feature_catalog": "feature_catalog.jsonl",
+    "pair_feature_evidence": "pair_feature_evidence.jsonl",
+    "screen_selection": "screen_selection.json",
+    "verifier_batch_plan": "verifier_batch_plan.json",
+}
 
 
 def batched(values: Sequence[Any], size: int) -> Iterable[Sequence[Any]]:
@@ -97,6 +105,51 @@ def git_state() -> tuple[str, bool]:
         ).strip()
     )
     return commit, dirty
+
+
+def validate_prepared_bundle(
+    output_dir: Path,
+    *,
+    canonical_report_path: Path | None = None,
+    data_path: Path | None = None,
+) -> dict[str, str]:
+    """Bind every downstream stage to the committed SCAR preparation manifest."""
+
+    canonical_path = canonical_report_path or DEFAULT_PROTOCOL.with_name(
+        "prepare_report.json"
+    )
+    observed_path = output_dir / "prepare_report.json"
+    canonical = json.loads(canonical_path.read_text(encoding="utf-8"))
+    observed = json.loads(observed_path.read_text(encoding="utf-8"))
+    stable_keys = (
+        "protocol_sha256",
+        "source_sha256",
+        "preflight",
+        "feature_catalog_rows",
+        "pair_feature_evidence_rows",
+        "verifier_screen",
+        "verifier_batch_plan",
+    )
+    for key in stable_keys:
+        if observed.get(key) != canonical.get(key):
+            raise ValueError(f"Prepared bundle differs from committed report: {key}")
+    if observed["protocol_sha256"] != sha256_file(DEFAULT_PROTOCOL):
+        raise ValueError("Prepared bundle uses a stale protocol")
+    if data_path is not None and sha256_file(data_path) != canonical["source_sha256"][
+        "scar"
+    ]:
+        raise ValueError("SCAR source hash differs from the prepared bundle")
+
+    hashes: dict[str, str] = {}
+    for key, filename in PREPARED_FILENAMES.items():
+        path = output_dir / filename
+        actual = sha256_file(path)
+        observed_hash = observed["artifacts"][key]["sha256"]
+        canonical_hash = canonical["artifacts"][key]["sha256"]
+        if actual != observed_hash or actual != canonical_hash:
+            raise ValueError(f"Prepared artifact hash mismatch: {key}")
+        hashes[key] = actual
+    return hashes
 
 
 def require_clean_real_backend(backend, *, dirty: bool) -> None:
@@ -312,6 +365,7 @@ def _validate_fixed_batch(
     expected_count: int,
     request_sha256: str,
     backend_model: str,
+    current_git_commit: str,
     label: str,
 ) -> bool:
     """Return True for a complete compatible batch; reject partial/stale batches."""
@@ -328,6 +382,11 @@ def _validate_fixed_batch(
             raise ValueError(f"Stale {label} result; rerun this stage with --overwrite")
         if row.get("model") != backend_model:
             raise ValueError(f"Mixed-model {label} result; rerun with --overwrite")
+        if backend_model == MODEL and (
+            row.get("generation_git_commit") != current_git_commit
+            or bool(row.get("generation_git_worktree_dirty"))
+        ):
+            raise ValueError(f"Stale code provenance in {label}; rerun with --overwrite")
     return True
 
 
@@ -371,6 +430,7 @@ def extract_mechanisms(
             expected_count=len(batch),
             request_sha256=request_sha256,
             backend_model=backend.model,
+            current_git_commit=generation_commit,
             label="mechanism",
         ):
             continue
@@ -461,6 +521,7 @@ def describe_features(
             expected_count=len(batch),
             request_sha256=request_sha256,
             backend_model=backend.model,
+            current_git_commit=generation_commit,
             label="feature-description",
         ):
             continue
@@ -725,6 +786,7 @@ def verify_pairs(
                     expected_count=len(batch_ids),
                     request_sha256=request_sha256,
                     backend_model=backend.model,
+                    current_git_commit=generation_commit,
                     label=f"verifier {query_id}/{batch_index}/{mode}",
                 ):
                     continue
@@ -864,11 +926,10 @@ def evaluate_command(
         }
     )
     if report["evidentiary"] and (
-        not report["complete_frozen_screen"]
-        or git_dirty
-        or prediction_dirty
-        or prediction_commits != {git_commit}
+        git_dirty or prediction_dirty or prediction_commits != {git_commit}
     ):
+        raise ValueError("Real prediction code provenance is dirty, mixed, or stale")
+    if report["evidentiary"] and not report["complete_frozen_screen"]:
         report["status"] = "live_smoke_non_evidentiary"
         report["evidentiary"] = False
     write_json(output_dir / "evaluation_report.json", report, overwrite=overwrite)
@@ -909,6 +970,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise ValueError("Structural Rescue must not read Latent Choice/test manifests")
 
     paths = _paths(args.output_dir)
+    if args.command != "prepare":
+        validate_prepared_bundle(args.output_dir, data_path=args.data)
     if args.command == "prepare":
         report = prepare_development(
             data_path=args.data, output_dir=args.output_dir, overwrite=args.overwrite

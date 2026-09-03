@@ -4,7 +4,9 @@ import json
 
 import pytest
 
+from structural_rescue.core import DEFAULT_PROTOCOL, sha256_file
 from structural_rescue.llm import (
+    MODEL,
     feature_description_payload,
     mechanism_payload,
     pair_payload_hash,
@@ -14,7 +16,9 @@ from structural_rescue.llm import (
 from structural_rescue.run import (
     _pair_feature_context,
     _validate_fixed_batch,
+    PREPARED_FILENAMES,
     validate_verdict_batch,
+    validate_prepared_bundle,
 )
 
 
@@ -151,6 +155,23 @@ def test_resume_rejects_partial_or_stale_fixed_batches() -> None:
             expected_count=2,
             request_sha256="right",
             backend_model="m",
+            current_git_commit="commit",
+            label="test",
+        )
+    with pytest.raises(ValueError, match="Stale code provenance"):
+        _validate_fixed_batch(
+            [
+                {
+                    "request_sha256": "right",
+                    "model": MODEL,
+                    "generation_git_commit": "old",
+                    "generation_git_worktree_dirty": False,
+                }
+            ],
+            expected_count=1,
+            request_sha256="right",
+            backend_model=MODEL,
+            current_git_commit="new",
             label="test",
         )
     with pytest.raises(ValueError, match="Stale"):
@@ -159,8 +180,38 @@ def test_resume_rejects_partial_or_stale_fixed_batches() -> None:
             expected_count=1,
             request_sha256="right",
             backend_model="m",
+            current_git_commit="commit",
             label="test",
         )
+
+
+def test_prepared_bundle_rejects_tampered_artifact(tmp_path) -> None:
+    artifacts = {}
+    for key, filename in PREPARED_FILENAMES.items():
+        path = tmp_path / filename
+        path.write_text(f"{key}\n", encoding="utf-8")
+        artifacts[key] = {"sha256": sha256_file(path), "path": filename}
+    report = {
+        "protocol_sha256": sha256_file(DEFAULT_PROTOCOL),
+        "source_sha256": {"source": "fixed"},
+        "preflight": {"queries": 1},
+        "feature_catalog_rows": 1,
+        "pair_feature_evidence_rows": 1,
+        "verifier_screen": {"queries": 1},
+        "verifier_batch_plan": {"queries": 1},
+        "artifacts": artifacts,
+    }
+    canonical = tmp_path / "canonical.json"
+    canonical.write_text(json.dumps(report), encoding="utf-8")
+    (tmp_path / "prepare_report.json").write_text(
+        json.dumps(report), encoding="utf-8"
+    )
+    validate_prepared_bundle(tmp_path, canonical_report_path=canonical)
+    (tmp_path / PREPARED_FILENAMES["candidate_manifest"]).write_text(
+        "tampered\n", encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="candidate_manifest"):
+        validate_prepared_bundle(tmp_path, canonical_report_path=canonical)
 
 
 def test_verdict_score_is_fixed_and_penalizes_surface_matches() -> None:

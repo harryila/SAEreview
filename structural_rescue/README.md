@@ -68,6 +68,8 @@ The real backend uses the OpenAI Responses API with strict JSON-schema outputs,
 `gpt-5.4-mini-2026-03-17`. It reads
 `OPENAI_API_KEY` from the environment and never writes it. Responses are cached
 by model, prompt, schema, and input hashes so interrupted runs can resume.
+Every downstream command first verifies all six prepared artifacts and the SCAR
+source against the committed source-text-free preparation report.
 The `extract` and `describe` stages transmit SCAR system names/backgrounds to
 that API; `verify` transmits the derived graphs and eligible feature descriptions.
 Run them only when that external processing is authorized.
