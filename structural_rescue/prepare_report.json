@@ -1,0 +1,76 @@
+{
+  "study_id": "feature-grounded-structural-rescue-development-v1",
+  "status": "prepared_no_llm_scoring",
+  "development_only": true,
+  "protocol_sha256": "ccbd558026cad969410e0870d70e2742dbb2ccee05e39b0fade85a685222e798",
+  "source_sha256": {
+    "scar": "12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369",
+    "embedding_cache": "ba182c6447de5fd4495e24d04df3e5bbd163737eaf09732401042fe6a76f7446",
+    "complementarity_queries": "0004cfe955212cdc341862cbfb8685f605fa2ba83a4d813981b7ed5ac1ea1385",
+    "cslg_sae": "29073be46ce5ddceee53f7e9ebf46449e239c1bc29f57dfebced041833698752",
+    "astroph_sae": "112e8a006ff0cc8e3b4439e1ef28df816564c5d9054974a763eaa69804cf02ed"
+  },
+  "preflight": {
+    "queries": 566,
+    "dense_top10_hits": 146,
+    "dense_top30_hits": 262,
+    "sae_union_hits": 200,
+    "known_sae_rescues": 54,
+    "known_sae_rescues_beyond_dense30": 19,
+    "random_union_hits": 193,
+    "sae_union_size": {
+      "min": 11,
+      "median": 19.0,
+      "mean": 19.10600706713781,
+      "max": 29
+    },
+    "random_union_size": {
+      "min": 13,
+      "median": 22.0,
+      "mean": 22.09540636042403,
+      "max": 30
+    }
+  },
+  "feature_catalog_rows": 256,
+  "pair_feature_evidence_rows": 10814,
+  "verifier_screen": {
+    "selection": "outcome_stratified_exploratory_screen",
+    "known_sae_rescue_queries": 54,
+    "dense_retention_control_queries": 54,
+    "rescue_pair_groups": 44,
+    "control_pair_groups": 47,
+    "confirmatory_or_population_recall_claim_allowed": false
+  },
+  "verifier_batch_plan": {
+    "batch_size": 64,
+    "query_count": 108,
+    "batch_count": 108
+  },
+  "artifacts": {
+    "candidate_manifest": {
+      "path": "structural_rescue/outputs/development/candidate_manifest.jsonl",
+      "sha256": "8408e716594c1bc18b962691a75c23a0308d81a9434ffceab1468fa8d5e97e51"
+    },
+    "qrels_sidecar": {
+      "path": "structural_rescue/outputs/development/qrels_sidecar.jsonl",
+      "sha256": "5c5756bb0f6a152ab08a5788516fdf83b73b58d08301bf2a55ae5a102b3c65ad"
+    },
+    "feature_catalog": {
+      "path": "structural_rescue/outputs/development/feature_catalog.jsonl",
+      "sha256": "e01bbd0e084419a648e978501576efdd04c7c57410bd7a080b39603b66d5869f"
+    },
+    "pair_feature_evidence": {
+      "path": "structural_rescue/outputs/development/pair_feature_evidence.jsonl",
+      "sha256": "7e0ddbe607fc9a674e2d5d0c69c768746a0ceb6c7d10d95a23f2e1edfa1b5857"
+    },
+    "screen_selection": {
+      "path": "structural_rescue/outputs/development/screen_selection.json",
+      "sha256": "235e5a287d0fb3e84fb21670f5f557d3e45281a5ea2c6766e5a8899cf1c7108a"
+    },
+    "verifier_batch_plan": {
+      "path": "structural_rescue/outputs/development/verifier_batch_plan.json",
+      "sha256": "e95aaba441d5e02390e1d7f373a2332d8a3843b6f11df875a19fddb4927ea5c1"
+    }
+  },
+  "claim_boundary": "Candidate preparation is not a verifier result, an SAE causal test, or evidence of serendipity."
+}

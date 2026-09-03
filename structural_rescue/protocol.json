@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "protocol_revision": 2,
+  "study_id": "feature-grounded-structural-rescue-development-v1",
+  "status": "exploratory_development_only",
+  "created_at": "2026-09-02",
+  "question": "Can one frozen relational verifier recover known SCAR candidates contributed by scientific SAE retrieval while separately measuring dense-hit retention?",
+  "predecessor": {
+    "retrieval_release": "v0.1-retrieval-study",
+    "retrieval_commit": "abf0e9f6968a6ca7ff5c1698388a4605fd631198"
+  },
+  "scope": {
+    "dataset": "SCAR English bidirectional cross-domain retrieval proxy",
+    "development_only": true,
+    "confirmatory_claim_allowed": false,
+    "reason": "The complete SCAR retrieval result and its rescue behavior have already been inspected.",
+    "fresh_external_benchmark_required_before_confirmation": true,
+    "latent_choice_test_prompts_may_be_used": false
+  },
+  "sources": {
+    "scar_sha256": "12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369",
+    "embedding_cache_sha256": "ba182c6447de5fd4495e24d04df3e5bbd163737eaf09732401042fe6a76f7446",
+    "complementarity_queries_sha256": "0004cfe955212cdc341862cbfb8685f605fa2ba83a4d813981b7ed5ac1ea1385",
+    "cslg_sae_sha256": "29073be46ce5ddceee53f7e9ebf46449e239c1bc29f57dfebced041833698752",
+    "astroph_sae_sha256": "112e8a006ff0cc8e3b4439e1ef28df816564c5d9054974a763eaa69804cf02ed"
+  },
+  "development_population": {
+    "candidate_preflight_queries": 566,
+    "verifier_screen_queries": 108,
+    "known_sae_rescue_queries": 54,
+    "dense_retention_control_queries": 54,
+    "retention_selection": "SHA-256 order over dense-top-10 successes whose canonical pair is absent from the rescue stratum",
+    "pair_cluster": "canonical unordered normalized system-name pair",
+    "use": "outcome-stratified screening on a fully inspected development benchmark; no population Recall claim"
+  },
+  "candidate_generation": {
+    "top_k": 10,
+    "dense_baseline": "dense top-10",
+    "sae_union": "stable deduplicated union of dense top-10, cs.LG SAE top-10, and astro.PH SAE top-10",
+    "dense_pool": "dense top-30",
+    "random_union": "stable deduplicated union of dense top-10 and two independently seeded random-projection top-10 lists",
+    "random_seeds": [2026090201, 2026090202],
+    "random_control_scope": "matched on dictionary width, top-k sparsity, number of representations, and at-most-30 candidate budget; not claimed to match learned SAE activation statistics"
+  },
+  "feature_evidence": {
+    "shared_features_per_pair": 3,
+    "described_features_per_representation": 128,
+    "selection": "highest aggregate IDF-weighted shared activation across every SAE-union query-candidate pair, without qrels",
+    "description_examples_per_feature": 6,
+    "descriptions_frozen_before_verifier_scoring": true,
+    "model_visible_feature_ids": "opaque representation-local aliases",
+    "coherence_rule": "only descriptions returned coherent=true may be supplied",
+    "direct_example_rule": "omit the entire feature for a pair if either system's normalized name-plus-background content hash occurs anywhere in that feature's exact batched description-request context",
+    "usable_features_per_pair": "0 to 3 after frozen coherence and direct-example filtering",
+    "interpretation": "the grounded comparison adds the full feature-evidence bundle (opaque aliases, activation percentiles, and descriptions), not descriptions alone"
+  },
+  "mechanism_extraction": {
+    "inputs": ["one system name", "that system's own background text"],
+    "forbidden_inputs": ["paired system", "SCAR mappings", "SCAR Explanation", "gold candidate", "retrieval rank", "rescue status"],
+    "fields": ["summary", "entities_and_roles", "causal_relations", "dynamics", "constraints", "boundary_conditions"],
+    "pair_specific_breakpoints": "produced only by the blinded verifier, never invented for one system in isolation"
+  },
+  "verifier": {
+    "model": "gpt-5.4-mini-2026-03-17",
+    "api": "OpenAI Responses API",
+    "external_processing": "extract and describe send SCAR names/backgrounds; verify sends derived graphs and eligible feature descriptions; explicit authorization is required",
+    "prompt_version": "structural-rescue-v2",
+    "reasoning_effort": "none",
+    "temperature": 0.0,
+    "maximum_attempts": 3,
+    "structured_outputs": true,
+    "store": false,
+    "blind_fields": ["gold labels", "retrieval source", "retrieval rank", "development stratum"],
+    "candidate_order": "deterministic SHA-256 permutation",
+    "batch_size": 64,
+    "ranking_score": "fixed deterministic function of integer rubric fields",
+    "batching": "one immutable deterministic ordered/chunked superpool plan per query; identical candidates, aliases, and positions are scored once without and once with SAE evidence",
+    "missing_or_stale_result_policy": "abort rather than silently bottom-rank or mix provenance",
+    "resume_binding": ["model", "prompt version", "instruction hash", "schema hash", "exact request hash", "batch-plan hash", "alias-map hash", "git commit"],
+    "real_api_worktree": "must be clean and committed"
+  },
+  "arms": {
+    "dense_ranking": "Existing dense top-10, no verifier",
+    "dense30_structure": "Dense top-30 ranked by the structure-only pair verifier",
+    "sae_union_structure": "Dense plus two-SAE union ranked by the exact same structure-only pair verifier",
+    "random_union_structure": "Dense plus two-random-sparse union ranked by the exact same structure-only pair verifier",
+    "sae_union_feature_grounded": "The exact SAE union and verifier augmented with the frozen coherent, direct-example-safe feature-evidence bundle"
+  },
+  "development_readout": {
+    "primary_diagnostics": [
+      "known-rescue-stratum top-10 recovery",
+      "dense-retention-stratum top-10 retention",
+      "SAE-union structure verifier minus dense-30 structure verifier",
+      "SAE-union structure verifier minus random-union structure verifier",
+      "feature-grounded SAE-union verifier minus structure-only SAE-union verifier"
+    ],
+    "uncertainty": "separate canonical-pair clustered bootstraps within the rescue and retention strata",
+    "interpretation": "outcome-stratified exploratory method screening only; pooled screen rates are descriptive and no p-value or interval is confirmatory",
+    "artifact_binding": ["protocol", "lockfile", "git commit", "candidate manifest", "screen selection", "batch plan", "qrels sidecar", "mechanisms", "feature catalog", "feature descriptions", "pair evidence", "predictions"]
+  },
+  "stop_rules": [
+    "Do not modify the frozen retrieval, Latent Escape, or Latent Choice protocols.",
+    "Do not expose qrels or rescue labels to extraction, feature description, or verification.",
+    "Do not tune on or reuse the 120 untouched Latent Choice prompts.",
+    "Dense and random arm ordering on the outcome-selected screen is diagnostic only and cannot establish SAE specificity.",
+    "Treat the feature-grounded minus structure-only comparison only as the effect of adding this SAE-derived feature-evidence bundle, separate from candidate-source value.",
+    "A passing screen licenses only method freezing and evaluation on an outcome-independent external benchmark.",
+    "Do not run a confirmatory analysis until the complete method and an independent benchmark are frozen."
+  ]
+}

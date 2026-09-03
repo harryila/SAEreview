@@ -1,6 +1,6 @@
 # SAEreview
 
-This repository contains three deliberately separated studies of sparse
+This repository contains four deliberately separated studies of sparse
 autoencoders (SAEs) and cross-domain analogy:
 
 1. **Retrieval pilot — frozen.** The completed SCAR study is preserved at
@@ -16,6 +16,11 @@ autoencoders (SAEs) and cross-domain analogy:
    endpoints met the pre-run mapping-invariance rubric. It therefore remains
    stopped before feature discovery or intervention; see
    [`latent_choice/`](latent_choice/README.md).
+4. **Feature-Grounded Structural Rescue — development scaffold.** This separate
+   study tests whether a blinded relational verifier can use candidates supplied
+   by the two SAE retrievers, with dense and two-projection random-sparse controls.
+   Candidate preparation is complete; no verifier result exists yet. See
+   [`structural_rescue/`](structural_rescue/README.md).
 
 The retrieval result motivates the pivot but is **not** evidence for the new
 generation hypothesis.
@@ -105,6 +110,22 @@ one prompt (21/24 versus 22/24). Per the pre-run rule, coded-domain choice is
 stopped rather than retuned. This remains a measurement result, not a test of
 the SAE causal hypothesis; no feature-domain association or study intervention
 was run, and the confirmatory split remains untouched.
+
+## Feature-Grounded Structural Rescue
+
+The next study returns to the retrieval pilot's one positive signal: the
+dense-plus-SAE candidate oracle. It cleanly separates candidate-source value
+from verifier value and feature-evidence-bundle value across five fixed arms. The
+real-data preparation pass reproduces dense top-10 **146/566**, dense top-30
+**262/566**, and the dense-plus-two-SAE union **200/566**. A new two-projection
+random-sparse union reaches an oracle **193/566**, making it a substantive
+specificity control rather than a token placebo.
+
+This is still pre-result. The structured extractor and blinded verifier are
+implemented, and an offline fixture run passes, but no real verifier judgment
+has been produced. All SCAR work is explicitly exploratory development; an
+external untouched benchmark is required before any confirmatory retrieval
+claim. The 120 untouched Latent Choice prompts remain preserved and excluded.
 
 ## License and attribution
 

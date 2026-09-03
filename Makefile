@@ -1,13 +1,14 @@
-.PHONY: reproduce-retrieval check latent-prompts latent-protocol latent-test latent-dry-run latent-dev-baseline latent-choice-protocol latent-choice-test latent-choice-dry-run latent-choice-calibration
+.PHONY: reproduce-retrieval check latent-prompts latent-protocol latent-test latent-dry-run latent-dev-baseline latent-choice-protocol latent-choice-test latent-choice-dry-run latent-choice-calibration structural-rescue-protocol structural-rescue-test structural-rescue-prepare structural-rescue-dry-run
 
 reproduce-retrieval:
 	./scripts/reproduce_retrieval.sh
 
 check:
-	uv run python -m py_compile *.py scripts/*.py latent_escape/*.py latent_choice/*.py
+	uv run python -m py_compile *.py scripts/*.py latent_escape/*.py latent_choice/*.py structural_rescue/*.py
 	uv run python latent_escape/validate_protocol.py
 	uv run python -m latent_choice.validate_protocol
-	uv run python -m pytest -q latent_escape/tests latent_choice/tests
+	uv run python -m structural_rescue.validate_protocol
+	uv run python -m pytest -q latent_escape/tests latent_choice/tests structural_rescue/tests
 
 latent-protocol:
 	uv run python latent_escape/validate_protocol.py --show-summary
@@ -41,3 +42,16 @@ latent-choice-dry-run: latent-prompts
 
 latent-choice-calibration: latent-prompts
 	uv run python -m latent_choice.exploratory_calibration
+
+structural-rescue-protocol:
+	uv run python -m structural_rescue.validate_protocol --show-summary
+
+structural-rescue-test:
+	uv run python -m pytest -q structural_rescue/tests
+
+structural-rescue-prepare:
+	uv run python -m structural_rescue.run prepare --overwrite
+
+structural-rescue-dry-run:
+	uv run python -m structural_rescue.run prepare --output-dir structural_rescue/outputs/dry_run --overwrite
+	uv run python -m structural_rescue.run dry-run --output-dir structural_rescue/outputs/dry_run --backend fixture --limit-queries 2 --overwrite
