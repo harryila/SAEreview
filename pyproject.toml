@@ -1,6 +1,6 @@
 [project]
 name = "saereview"
-version = "0.5.0"
+version = "0.5.1"
 description = "SAE analogy retrieval, causal-measurement, and structural-rescue studies"
 requires-python = ">=3.10,<3.11"
 dependencies = [

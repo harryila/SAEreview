@@ -203,7 +203,9 @@ def normalize_empty_evidence_verdicts(
 
 def validate_feature_description_batch(
     output: Mapping[str, Any], *, expected_aliases: Sequence[str]
-) -> None:
+) -> int:
+    """Validate IDs and normalize unusable incoherent text without changing eligibility."""
+
     validate_exact_ids(
         output,
         collection_key="features",
@@ -211,10 +213,18 @@ def validate_feature_description_batch(
         expected=expected_aliases,
     )
     fallback = "no coherent mechanistic interpretation"
+    normalizations = 0
     for row in output["features"]:
-        description = str(row["description"]).strip().casefold().rstrip(".")
-        if not bool(row["coherent"]) and description != fallback:
-            raise ValueError("Incoherent feature description must use the frozen fallback")
+        if not bool(row["coherent"]):
+            raw_description = str(
+                row.get("raw_description", row["description"])
+            ).strip()
+            normalized = raw_description.casefold().rstrip(".") != fallback
+            row["raw_description"] = raw_description
+            row["incoherent_description_normalized"] = normalized
+            row["description"] = fallback
+            normalizations += int(normalized)
+    return normalizations
 
 
 def _pair_feature_context(
@@ -752,6 +762,10 @@ def describe_features(
         "required_features": len(features),
         "completed_features": len(features),
         "backend": backend.model,
+        "incoherent_description_normalizations": sum(
+            int(bool(row.get("incoherent_description_normalized")))
+            for row in existing.values()
+        ),
         "output_sha256": sha256_file(output_path),
     }
 

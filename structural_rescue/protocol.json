@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "protocol_revision": 5,
+  "protocol_revision": 6,
   "study_id": "feature-grounded-structural-rescue-development-v2",
   "status": "exploratory_development_only",
   "created_at": "2026-09-02",
@@ -87,6 +87,13 @@
       "freeze numerical full-go, narrow-go, and no-go rules before the development screen"
     ],
     "classification": "transparent post-smoke, pre-screen protocol amendment"
+  },
+  "pre_coverage_api_compliance_amendment": {
+    "date": "2026-09-02",
+    "known_before_change": "200/256 real feature descriptions had completed when one four-feature response repeatedly returned coherent=false with explanatory text instead of the exact frozen fallback phrase. No real coverage audit, verifier score, qrels-based evaluation, or 108-query result had been produced.",
+    "change": "preserve the raw text, record a normalization flag, and deterministically replace the description of every coherent=false feature with the frozen fallback before caching or downstream use",
+    "rationale": "coherent=false features were already excluded from all three evidence arms, so this repairs API compliance without changing feature eligibility, evidence content, an endpoint, or a decision threshold",
+    "classification": "transparent pre-coverage, pre-verifier implementation amendment"
   },
   "mechanism_extraction": {
     "inputs": ["one system name", "that system's own background text"],

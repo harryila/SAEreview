@@ -32,6 +32,7 @@ from structural_rescue.run import (
     normalize_empty_evidence_verdicts,
     validate_capacity_smoke_report,
     validate_coverage_report,
+    validate_feature_description_batch,
     validate_verdict_batch,
     validate_prepared_bundle,
 )
@@ -122,6 +123,37 @@ def test_feature_grounding_uses_opaque_alias_and_explicit_description() -> None:
     assert feature["feature_key"] == "R2:F0012"
     assert feature["description"] == "oscillatory feedback"
     assert "astroph" not in json.dumps(payload)
+
+
+def test_incoherent_description_is_preserved_then_normalized() -> None:
+    output = {
+        "features": [
+            {
+                "feature_key": "R1:F0001",
+                "description": "The examples do not support one clear pattern.",
+                "coherent": False,
+            },
+            {
+                "feature_key": "R1:F0002",
+                "description": "negative feedback",
+                "coherent": True,
+            },
+        ]
+    }
+    assert (
+        validate_feature_description_batch(
+            output, expected_aliases=["R1:F0001", "R1:F0002"]
+        )
+        == 1
+    )
+    incoherent = output["features"][0]
+    assert (
+        incoherent["raw_description"]
+        == "The examples do not support one clear pattern."
+    )
+    assert incoherent["incoherent_description_normalized"] is True
+    assert incoherent["description"] == "no coherent mechanistic interpretation"
+    assert output["features"][1]["description"] == "negative feedback"
 
 
 def test_verifier_evidence_modes_preserve_pairs_and_isolate_description_text() -> None:

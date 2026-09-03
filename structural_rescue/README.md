@@ -39,6 +39,14 @@ exposed two model-compliance edge cases, both documented before any 108-query
 evaluation. Its two-query readout remains strictly non-evidentiary; see
 [`smoke_report.json`](smoke_report.json).
 
+Revision 6 records one further pre-coverage API-compliance repair. After 200/256
+real descriptions completed, a response repeatedly marked a feature incoherent
+but did not use the exact fallback wording. Incoherent features were already
+ineligible for every evidence arm. The loader now preserves that raw text,
+records the normalization, and replaces only the unusable description with the
+frozen fallback. No real coverage audit, verifier score, or qrels-based
+evaluation preceded the change.
+
 ## Fixed comparisons
 
 The implementation fixes candidate budget at 30 and separates candidate-source
