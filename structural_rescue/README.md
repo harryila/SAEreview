@@ -47,6 +47,14 @@ records the normalization, and replaces only the unusable description with the
 frozen fallback. No real coverage audit, verifier score, or qrels-based
 evaluation preceded the change.
 
+Revision 7 changes only request scheduling after the qrels-free gates passed and
+892/24,708 judgments had been cached sequentially. The four already-frozen
+evidence-mode requests for each candidate batch now run concurrently and are
+validated and written in the original deterministic order. Request bytes,
+hashes, prompts, schemas, retries, scoring, endpoints, and thresholds are
+unchanged. No rubric values, rankings, qrels, or evaluation outcome were
+inspected before this throughput-only amendment.
+
 ## Fixed comparisons
 
 The implementation fixes candidate budget at 30 and separates candidate-source

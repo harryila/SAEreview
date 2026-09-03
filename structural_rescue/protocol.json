@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "protocol_revision": 6,
+  "protocol_revision": 7,
   "study_id": "feature-grounded-structural-rescue-development-v2",
   "status": "exploratory_development_only",
   "created_at": "2026-09-02",
@@ -95,6 +95,13 @@
     "rationale": "coherent=false features were already excluded from all three evidence arms, so this repairs API compliance without changing feature eligibility, evidence content, an endpoint, or a decision threshold",
     "classification": "transparent pre-coverage, pre-verifier implementation amendment"
   },
+  "pre_evaluation_throughput_amendment": {
+    "date": "2026-09-02",
+    "known_before_change": "The qrels-free coverage and capacity gates had passed and 892/24708 verifier judgments had been cached while requests were scheduled sequentially. Only completion counts and runtime were observed; no rubric values, rankings, qrels, or evaluation outcome had been inspected.",
+    "change": "schedule the four already-frozen evidence-mode requests for each immutable candidate batch concurrently with four workers, then validate and persist results in the original deterministic mode order",
+    "invariants": "model, prompts, schemas, payload bytes, request hashes, cache keys, candidate batches, mode order, retries, scoring, artifacts, endpoints, and decision thresholds are unchanged",
+    "classification": "transparent pre-evaluation operational amendment"
+  },
   "mechanism_extraction": {
     "inputs": ["one system name", "that system's own background text"],
     "forbidden_inputs": ["paired system", "SCAR mappings", "SCAR Explanation", "gold candidate", "retrieval rank", "rescue status"],
@@ -114,6 +121,7 @@
     "blind_fields": ["gold labels", "retrieval source", "retrieval rank", "development stratum"],
     "candidate_order": "deterministic SHA-256 permutation",
     "batch_size": 64,
+    "mode_request_workers": 4,
     "ranking_score": "fixed deterministic function of integer rubric fields",
     "empty_evidence_postprocessing": "retain raw evidence-only fields, then force feature_support=0 and accidental_feature_overlap=false before scoring when the pair has no shared feature evidence",
     "batching": "one immutable deterministic ordered/chunked superpool plan per query; identical candidates, aliases, positions, and common feature rows are scored in structure, activation-only, aligned-description, and shuffled-description modes",

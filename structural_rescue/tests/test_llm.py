@@ -520,6 +520,7 @@ def test_capacity_smoke_report_is_frozen_and_required(tmp_path) -> None:
             "required_predictions": 340,
             "completed_predictions": 340,
             "maximum_batch_size_exercised": 64,
+            "mode_request_workers": 4,
             "backend": MODEL,
             "prompt_version": PROMPT_VERSION,
             "generation_git_commit": "frozen-commit",

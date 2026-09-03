@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
 import subprocess
@@ -52,6 +53,7 @@ from .llm import (
 
 
 MECHANISM_BATCH_SIZE = 8
+VERIFIER_MODE_WORKERS = 4
 PREPARED_FILENAMES = {
     "candidate_manifest": "candidate_manifest.jsonl",
     "qrels_sidecar": "qrels_sidecar.jsonl",
@@ -957,6 +959,8 @@ def validate_capacity_smoke_report(
         "prompt": report.get("prompt_version") == PROMPT_VERSION,
         "git_commit": report.get("generation_git_commit") == current_git_commit,
         "clean_generation": report.get("generation_git_worktree_dirty") is False,
+        "mode_workers": int(report.get("mode_request_workers", 0))
+        == VERIFIER_MODE_WORKERS,
         "mechanism_hash_recorded": (
             len(str(report.get("mechanisms_sha256_at_smoke", ""))) == 64
             and all(
@@ -998,6 +1002,8 @@ def capacity_smoke_report(
         and complete
         and int(verify_report["maximum_batch_size_exercised"])
         == required_batch_size
+        and int(verify_report["mode_request_workers"])
+        == VERIFIER_MODE_WORKERS
         and verify_report["generation_git_worktree_dirty"] is False
     )
     return {
@@ -1010,6 +1016,7 @@ def capacity_smoke_report(
         "maximum_batch_size_exercised": verify_report[
             "maximum_batch_size_exercised"
         ],
+        "mode_request_workers": verify_report["mode_request_workers"],
         "required_predictions": verify_report["required_predictions"],
         "completed_predictions": verify_report["completed_predictions"],
         "backend": verify_report["backend"],
@@ -1384,6 +1391,9 @@ def verify_pairs(
             if tuple(payloads) != tuple(VERIFIER_EVIDENCE_MODES):
                 raise AssertionError("Verifier evidence-mode order drifted")
             evidence_set_sha256 = canonical_json_sha256(feature_evidence)
+            pending: dict[
+                str, tuple[dict[str, Any], set[str], str]
+            ] = {}
             for mode, payload in payloads.items():
                 empty_aliases = {
                     str(row["candidate_alias"])
@@ -1412,6 +1422,12 @@ def verify_pairs(
                     label=f"verifier {query_id}/{batch_index}/{mode}",
                 ):
                     continue
+                pending[mode] = (payload, empty_aliases, request_sha256)
+
+            def complete_mode(
+                mode: str,
+            ) -> tuple[str, dict[str, Any]]:
+                payload, empty_aliases, _ = pending[mode]
                 result = backend.complete(
                     schema_name="verdict_batch",
                     schema=VERDICT_BATCH_SCHEMA,
@@ -1427,6 +1443,30 @@ def verify_pairs(
                         empty_evidence_aliases=empty_aliases,
                     ),
                 )
+                return mode, result
+
+            completed_modes: dict[str, dict[str, Any]] = {}
+            if pending and backend.model == MODEL:
+                with ThreadPoolExecutor(
+                    max_workers=min(VERIFIER_MODE_WORKERS, len(pending))
+                ) as executor:
+                    futures = {
+                        mode: executor.submit(complete_mode, mode)
+                        for mode in pending
+                    }
+                    for mode in pending:
+                        completed_mode, result = futures[mode].result()
+                        completed_modes[completed_mode] = result
+            else:
+                for mode in pending:
+                    completed_mode, result = complete_mode(mode)
+                    completed_modes[completed_mode] = result
+
+            for mode in payloads:
+                if mode not in completed_modes:
+                    continue
+                payload, empty_aliases, request_sha256 = pending[mode]
+                result = completed_modes[mode]
                 empty_evidence_normalizations += normalize_empty_evidence_verdicts(
                     result, empty_evidence_aliases=empty_aliases
                 )
@@ -1483,6 +1523,9 @@ def verify_pairs(
         "completed_predictions": completed,
         "backend": backend.model,
         "paired_superpool_batches": True,
+        "mode_request_workers": (
+            VERIFIER_MODE_WORKERS if backend.model == MODEL else 1
+        ),
         "verifier_evidence_modes": list(VERIFIER_EVIDENCE_MODES),
         "feature_description_shuffle_map_sha256": shuffle_map_sha256,
         "maximum_batch_size_exercised": maximum_batch_size_exercised,

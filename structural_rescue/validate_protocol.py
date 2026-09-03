@@ -28,7 +28,7 @@ from .llm import (
 
 def validate(path: Path = DEFAULT_PROTOCOL) -> dict:
     protocol = json.loads(path.read_text(encoding="utf-8"))
-    if protocol.get("schema_version") != 1 or protocol.get("protocol_revision") != 6:
+    if protocol.get("schema_version") != 1 or protocol.get("protocol_revision") != 7:
         raise ValueError("Unexpected Structural Rescue protocol revision")
     if protocol["status"] != "exploratory_development_only":
         raise ValueError("Protocol must remain exploratory development-only")
@@ -62,6 +62,8 @@ def validate(path: Path = DEFAULT_PROTOCOL) -> dict:
         raise ValueError("Verifier retry policy differs from implementation")
     if int(verifier["batch_size"]) != VERIFIER_BATCH_SIZE:
         raise ValueError("Verifier batch size differs from implementation")
+    if int(verifier["mode_request_workers"]) != 4:
+        raise ValueError("Verifier mode-request worker count differs from implementation")
     expected_modes = (
         "structure",
         "activation_only",

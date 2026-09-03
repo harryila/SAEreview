@@ -2,7 +2,7 @@
   "study_id": "feature-grounded-structural-rescue-development-v2",
   "status": "prepared_no_llm_scoring",
   "development_only": true,
-  "protocol_sha256": "fcbb53a2ea27bed77169681d5c5542cdb944f5836a6ac3204dc7e87c2c8e04f0",
+  "protocol_sha256": "8086568ee68890095efd1700a066880096056ac03f13707d715a6ddcbddfdbd3",
   "source_sha256": {
     "scar": "12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369",
     "embedding_cache": "ba182c6447de5fd4495e24d04df3e5bbd163737eaf09732401042fe6a76f7446",
