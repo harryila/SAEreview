@@ -122,8 +122,9 @@ random-sparse union reaches an oracle **193/566**, making it a substantive
 specificity control rather than a token placebo.
 
 This is still pre-result. The structured extractor and blinded verifier are
-implemented, and an offline fixture run passes, but no real verifier judgment
-has been produced. All SCAR work is explicitly exploratory development; an
+implemented, and a real two-query API smoke passes all stages and guardrails.
+Its readout is explicitly non-evidentiary; no 108-query development result has
+been produced. All SCAR work is explicitly exploratory development; an
 external untouched benchmark is required before any confirmatory retrieval
 claim. The 120 untouched Latent Choice prompts remain preserved and excluded.
 

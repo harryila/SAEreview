@@ -124,3 +124,15 @@ def test_committed_prepare_report_reproduces_frozen_candidate_counts() -> None:
     serialized = json.dumps(report).lower()
     assert "system_a_background" not in serialized
     assert "system_b_background" not in serialized
+
+
+def test_committed_live_smoke_report_is_non_evidentiary_and_source_free() -> None:
+    report = json.loads(DEFAULT_PROTOCOL.with_name("smoke_report.json").read_text())
+    assert report["status"] == "live_smoke_passed_non_evidentiary"
+    assert report["protocol_sha256"] == sha256_file(DEFAULT_PROTOCOL)
+    assert report["scope"]["queries"] == 2
+    assert report["scope"]["population_estimate_allowed"] is False
+    assert report["pipeline"]["paired_verifier_predictions"] == "166/166"
+    serialized = json.dumps(report).lower()
+    for forbidden in ("system_a_background", "system_b_background", "openai_api_key"):
+        assert forbidden not in serialized

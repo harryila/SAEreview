@@ -20,18 +20,20 @@ whose gold candidate is below dense rank 30. Its realized pool has 11–29 uniqu
 candidates (mean 19.11). The two-projection random control has 13–30 (mean
 22.10). These are candidate-oracle facts, not verifier results.
 
-The offline two-query fixture run passes end to end. A real external-API smoke
-test passed mechanism extraction (73/73) but exposed a deterministic missing-ID
-failure in one eight-feature description batch after 208/256 descriptions. Before
-any verifier scores existed, protocol revision 3 froze uniform four-feature
-description batches; that compatibility rerun is in progress. No structural-
-verifier result exists yet.
+The offline fixture and real two-query external-API smoke both pass end to end.
+The real smoke completed 73/73 mechanism graphs, 256/256 feature descriptions,
+and 166/166 paired verifier judgments. It exposed two model-compliance edge cases,
+both transparently frozen before qrels-based evaluation: four-feature description
+batches replaced eight-feature batches, and evidence-only rubric fields are
+deterministically nulled for empty-evidence pairs while raw values are retained.
 
 That rerun completed 256/256 descriptions. Before evaluation, the real verifier
 then exposed a second instruction-compliance edge case: an empty-evidence pair
 received nonzero evidence-only rubric fields. Revision 4 preserves those raw
 fields for audit and deterministically zeros them before scoring, exactly as the
 original invariant required. No qrels-based evaluation preceded this amendment.
+The final two-row readout is strictly non-evidentiary; see
+[`smoke_report.json`](smoke_report.json).
 
 ## Fixed comparisons
 

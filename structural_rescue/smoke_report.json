@@ -1,0 +1,56 @@
+{
+  "study_id": "feature-grounded-structural-rescue-development-v1",
+  "status": "live_smoke_passed_non_evidentiary",
+  "date": "2026-09-02",
+  "model": "gpt-5.4-mini-2026-03-17",
+  "generation_git_commit": "bfcfe84e45d5013a9afaaf8121d748d92bd47154",
+  "protocol_sha256": "e7401d11823d76c846a58c9f88192268682b0f6bdc447b743d89fe3e1389181d",
+  "scope": {
+    "queries": 2,
+    "pair_groups": 2,
+    "known_sae_rescue_queries": 1,
+    "dense_retention_queries": 1,
+    "complete_frozen_screen": false,
+    "population_estimate_allowed": false
+  },
+  "pipeline": {
+    "mechanisms": "73/73",
+    "feature_descriptions": "256/256",
+    "paired_verifier_predictions": "166/166",
+    "paired_superpool_batches": true,
+    "feature_evidence": {
+      "pairs_scored": 83,
+      "pairs_with_raw_evidence": 36,
+      "pairs_with_usable_evidence": 27,
+      "raw_features": 108,
+      "incoherent_features_removed": 16,
+      "direct_example_features_removed": 43,
+      "usable_features": 49
+    },
+    "empty_evidence_field_normalizations": 1
+  },
+  "descriptive_top10_successes": {
+    "dense_ranking": "1/2",
+    "dense30_structure": "1/2",
+    "sae_union_structure": "2/2",
+    "random_union_structure": "2/2",
+    "sae_union_feature_grounded": "2/2"
+  },
+  "smoke_amendments": [
+    "Uniform feature-description batch size reduced from eight to four before verifier scoring after a deterministic missing-ID response.",
+    "Raw evidence-only fields are preserved but forced to their predefined null values before scoring when a pair has no feature evidence."
+  ],
+  "artifact_sha256": {
+    "mechanisms": "f551154db263550796ce992ece0e6904b50f44dcc047bc2d98fa9bd1a726504c",
+    "feature_descriptions": "6124f612d12882fc0240fe0a1474c4c767ae3a2ca54467bcaa10dc07a145b953",
+    "predictions": "3454052d911f436b75d689e965213ea98ae8fcbdb08a7f372964bc883102f186",
+    "candidate_manifest": "8408e716594c1bc18b962691a75c23a0308d81a9434ffceab1468fa8d5e97e51",
+    "screen_selection": "235e5a287d0fb3e84fb21670f5f557d3e45281a5ea2c6766e5a8899cf1c7108a",
+    "verifier_batch_plan": "e95aaba441d5e02390e1d7f373a2332d8a3843b6f11df875a19fddb4927ea5c1",
+    "qrels_sidecar": "5c5756bb0f6a152ab08a5788516fdf83b73b58d08301bf2a55ae5a102b3c65ad",
+    "feature_catalog": "e01bbd0e084419a648e978501576efdd04c7c57410bd7a080b39603b66d5869f",
+    "pair_feature_evidence": "7e0ddbe607fc9a674e2d5d0c69c768746a0ceb6c7d10d95a23f2e1edfa1b5857",
+    "lockfile": "0ce60a1b412cee481bf0e41c70d049fac7b7f9e9b21409dc142bd8f1ea8bb048"
+  },
+  "claim_boundary": "This two-query smoke validates execution and guardrails only. Its arm outcomes are not evidence of verifier effectiveness, SAE specificity, a causal intervention, serendipity, or discovery."
+}
