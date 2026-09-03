@@ -16,10 +16,11 @@ autoencoders (SAEs) and cross-domain analogy:
    endpoints met the pre-run mapping-invariance rubric. It therefore remains
    stopped before feature discovery or intervention; see
    [`latent_choice/`](latent_choice/README.md).
-4. **Feature-Grounded Structural Rescue — development scaffold.** This separate
-   study tests whether a blinded relational verifier can use candidates supplied
-   by the two SAE retrievers, with dense and two-projection random-sparse controls.
-   Candidate preparation is complete; no verifier result exists yet. See
+4. **Feature-Grounded Structural Rescue — development screen.** This separate
+   study tests a blinded relational verifier on exact-30 candidate pools and
+   isolates aligned SAE descriptions from activation-only and shuffled-description
+   controls. Candidate preparation is complete; no 108-query verifier result
+   exists yet. See
    [`structural_rescue/`](structural_rescue/README.md).
 
 The retrieval result motivates the pivot but is **not** evidence for the new
@@ -113,20 +114,27 @@ was run, and the confirmatory split remains untouched.
 
 ## Feature-Grounded Structural Rescue
 
-The next study returns to the retrieval pilot's one positive signal: the
-dense-plus-SAE candidate oracle. It cleanly separates candidate-source value
-from verifier value and feature-evidence-bundle value across five fixed arms. The
+The next study returns to the retrieval pilot's candidate oracle. It separates
+candidate-source value from verifier value and feature-description value across
+nine fixed arms, with every verifier pool padded to exactly 30 candidates. The
 real-data preparation pass reproduces dense top-10 **146/566**, dense top-30
-**262/566**, and the dense-plus-two-SAE union **200/566**. A new two-projection
-random-sparse union reaches an oracle **193/566**, making it a substantive
-specificity control rather than a token placebo.
+**262/566**, and the unpadded dense-plus-two-SAE union **200/566**.
 
-This is still pre-result. The structured extractor and blinded verifier are
-implemented, and a real two-query API smoke passes all stages and guardrails.
-Its readout is explicitly non-evidentiary; no 108-query development result has
-been produced. All SCAR work is explicitly exploratory development; an
-external untouched benchmark is required before any confirmatory retrieval
-claim. The 120 untouched Latent Choice prompts remain preserved and excluded.
+The expanded cheap control is already informative: across 64 prespecified
+two-projection random-sparse unions, oracle scores range from **179 to 216/566**
+with median **195**; **18/64** match or exceed the SAE score. The higher 95th
+percentile is 204 and the plus-one tail probability is **19/65 = 0.292**.
+Consequently, the frozen SAE-specific candidate-source gate has failed and will
+not be retuned. The still-open development question is narrower: whether
+correctly aligned feature descriptions beat structure-only, activation-only, and
+frequency-matched shuffled-description controls on the identical SAE pool.
+
+This remains pre-verifier-result. The structured extractor and blinded verifier
+are implemented, and a historical real two-query API smoke passes all stages and
+guardrails. Its readout is explicitly non-evidentiary; no 108-query development
+result has been produced. All SCAR work is exploratory development, and an
+external untouched benchmark is required before any confirmatory claim. The 120
+untouched Latent Choice prompts remain preserved and excluded.
 
 ## License and attribution
 

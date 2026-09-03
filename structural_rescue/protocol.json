@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "protocol_revision": 4,
-  "study_id": "feature-grounded-structural-rescue-development-v1",
+  "protocol_revision": 5,
+  "study_id": "feature-grounded-structural-rescue-development-v2",
   "status": "exploratory_development_only",
   "created_at": "2026-09-02",
   "question": "Can one frozen relational verifier recover known SCAR candidates contributed by scientific SAE retrieval while separately measuring dense-hit retention?",
@@ -36,11 +36,17 @@
   "candidate_generation": {
     "top_k": 10,
     "dense_baseline": "dense top-10",
-    "sae_union": "stable deduplicated union of dense top-10, cs.LG SAE top-10, and astro.PH SAE top-10",
+    "sae_source_union": "stable deduplicated union of dense top-10, cs.LG SAE top-10, and astro.PH SAE top-10; retained unpadded only for source-oracle reporting and feature selection",
+    "verifier_pool_matching": "append the next-best unused dense candidates to every SAE and random source union until it contains exactly 30 unique candidates; never drop a source-union member",
     "dense_pool": "dense top-30",
-    "random_union": "stable deduplicated union of dense top-10 and two independently seeded random-projection top-10 lists",
-    "random_seeds": [2026090201, 2026090202],
-    "random_control_scope": "matched on dictionary width, top-k sparsity, number of representations, and at-most-30 candidate budget; not claimed to match learned SAE activation statistics"
+    "random_source_union": "stable deduplicated union of dense top-10 and two independently seeded random-projection top-10 lists",
+    "random_seed_namespace": "structural-rescue-random-source-oracle-v1",
+    "random_seed_pair_count": 64,
+    "random_seed_pairs_sha256": "5c53305128f85ec37ca5efc299395200569295a67ee754bde0714067cdf53d72",
+    "legacy_seed_pair_preserved_at_index_zero": [2026090201, 2026090202],
+    "verified_random_pair_indices": [0, 1, 2],
+    "random_oracle_rule": "report all 64 unpadded source-oracle results; never select the best seed pair; the first three prespecified pairs enter verification",
+    "random_control_scope": "matched on dictionary width, top-k sparsity, number of representations, and exact 30-candidate verifier budget; not claimed to match learned SAE activation statistics"
   },
   "feature_evidence": {
     "shared_features_per_pair": 3,
@@ -50,10 +56,13 @@
     "description_batch_size": 4,
     "descriptions_frozen_before_verifier_scoring": true,
     "model_visible_feature_ids": "opaque representation-local aliases",
-    "coherence_rule": "only descriptions returned coherent=true may be supplied",
-    "direct_example_rule": "omit the entire feature for a pair if either system's normalized name-plus-background content hash occurs anywhere in that feature's exact batched description-request context",
-    "usable_features_per_pair": "0 to 3 after frozen coherence and direct-example filtering",
-    "interpretation": "the grounded comparison adds the full feature-evidence bundle (opaque aliases, activation percentiles, and descriptions), not descriptions alone"
+    "description_shuffle": "within each representation, sort by corpus-active frequency, split into eight equal-count bins, hash-order each bin, and apply a one-step cyclic derangement frozen before descriptions are generated",
+    "description_shuffle_namespace": "structural-rescue-feature-description-shuffle-v1",
+    "coherence_rule": "a feature enters any evidence arm only when both its aligned description and frozen shuffled donor description have coherent=true",
+    "direct_example_rule": "a feature enters any evidence arm only when neither pair member occurs anywhere in either the aligned or donor description's exact batched request context",
+    "common_evidence_set": "activation-only, aligned-description, and shuffled-description modes receive identical opaque aliases, ordering, and activation percentiles; only description presence/text differs",
+    "usable_features_per_pair": "0 to 3 after common coherence and direct-example filtering",
+    "interpretation": "aligned minus activation-only tests incremental description value; aligned minus shuffled-description tests whether semantic alignment, rather than generic extra text, matters"
   },
   "pre_verifier_smoke_amendment": {
     "date": "2026-09-02",
@@ -67,6 +76,18 @@
     "change": "preserve the raw model fields, but deterministically set feature_support=0 and accidental_feature_overlap=false before scoring whenever shared_feature_evidence is empty",
     "rationale": "this enforces the existing evidence-only rubric invariant rather than changing an endpoint"
   },
+  "pre_screen_design_amendment": {
+    "date": "2026-09-02",
+    "known_before_change": "The two-query non-evidentiary smoke, its 27/83 usable-evidence coverage, the full-corpus source-oracle totals 200/566 SAE and 193/566 for the legacy random seed pair, and mean unpadded pool sizes 19.11 SAE and 22.10 random were known. No 108-query verifier predictions or evaluation had been produced.",
+    "changes": [
+      "pad every verifier candidate pool to exactly 30 with next-unused dense candidates while preserving unpadded source pools for oracle reporting",
+      "add activation-only and within-frequency-bin shuffled-description controls on one common evidence set",
+      "expand random source-oracle diagnostics to 64 prespecified seed pairs and carry the first three into verification",
+      "freeze qrels-free coverage and maximum-batch operational checks",
+      "freeze numerical full-go, narrow-go, and no-go rules before the development screen"
+    ],
+    "classification": "transparent post-smoke, pre-screen protocol amendment"
+  },
   "mechanism_extraction": {
     "inputs": ["one system name", "that system's own background text"],
     "forbidden_inputs": ["paired system", "SCAR mappings", "SCAR Explanation", "gold candidate", "retrieval rank", "rescue status"],
@@ -77,7 +98,7 @@
     "model": "gpt-5.4-mini-2026-03-17",
     "api": "OpenAI Responses API",
     "external_processing": "extract and describe send SCAR names/backgrounds; verify sends derived graphs and eligible feature descriptions; explicit authorization is required",
-    "prompt_version": "structural-rescue-v2",
+    "prompt_version": "structural-rescue-v3",
     "reasoning_effort": "none",
     "temperature": 0.0,
     "maximum_attempts": 3,
@@ -88,7 +109,7 @@
     "batch_size": 64,
     "ranking_score": "fixed deterministic function of integer rubric fields",
     "empty_evidence_postprocessing": "retain raw evidence-only fields, then force feature_support=0 and accidental_feature_overlap=false before scoring when the pair has no shared feature evidence",
-    "batching": "one immutable deterministic ordered/chunked superpool plan per query; identical candidates, aliases, and positions are scored once without and once with SAE evidence",
+    "batching": "one immutable deterministic ordered/chunked superpool plan per query; identical candidates, aliases, positions, and common feature rows are scored in structure, activation-only, aligned-description, and shuffled-description modes",
     "missing_or_stale_result_policy": "abort rather than silently bottom-rank or mix provenance",
     "resume_binding": ["model", "prompt version", "instruction hash", "schema hash", "exact request hash", "batch-plan hash", "alias-map hash", "git commit"],
     "real_api_worktree": "must be clean and committed"
@@ -96,28 +117,64 @@
   "arms": {
     "dense_ranking": "Existing dense top-10, no verifier",
     "dense30_structure": "Dense top-30 ranked by the structure-only pair verifier",
-    "sae_union_structure": "Dense plus two-SAE union ranked by the exact same structure-only pair verifier",
-    "random_union_structure": "Dense plus two-random-sparse union ranked by the exact same structure-only pair verifier",
-    "sae_union_feature_grounded": "The exact SAE union and verifier augmented with the frozen coherent, direct-example-safe feature-evidence bundle"
+    "sae_union_padded30_structure": "SAE source union padded to 30, ranked by the identical structure-only verifier",
+    "random_union_padded30_structure_1": "Prespecified random source union 1 padded to 30, ranked by the identical structure-only verifier",
+    "random_union_padded30_structure_2": "Prespecified random source union 2 padded to 30, ranked by the identical structure-only verifier",
+    "random_union_padded30_structure_3": "Prespecified random source union 3 padded to 30, ranked by the identical structure-only verifier",
+    "sae_union_padded30_activation_only": "The same SAE-padded pool with opaque aliases and activation percentiles but no descriptions",
+    "sae_union_padded30_aligned_description": "The same SAE-padded pool with correctly aligned frozen descriptions",
+    "sae_union_padded30_shuffled_description": "The same SAE-padded pool with frozen within-representation, frequency-bin-matched donor descriptions"
   },
   "development_readout": {
     "primary_diagnostics": [
       "known-rescue-stratum top-10 recovery",
       "dense-retention-stratum top-10 retention",
-      "SAE-union structure verifier minus dense-30 structure verifier",
-      "SAE-union structure verifier minus random-union structure verifier",
-      "feature-grounded SAE-union verifier minus structure-only SAE-union verifier"
+      "SAE-padded structure verifier minus dense-30 structure verifier",
+      "SAE-padded structure verifier minus each of three prespecified random-padded structure verifiers",
+      "aligned-description minus structure-only and activation-only on the identical SAE-padded pool",
+      "aligned-description minus shuffled-description on the identical evidence rows"
     ],
-    "uncertainty": "separate canonical-pair clustered bootstraps within the rescue and retention strata",
+    "uncertainty": "separate canonical-pair clustered intervals by stratum plus a 10,000-resample stratified paired bootstrap positive fraction for net utility",
     "interpretation": "outcome-stratified exploratory method screening only; pooled screen rates are descriptive and no p-value or interval is confirmatory",
-    "artifact_binding": ["protocol", "lockfile", "git commit", "candidate manifest", "screen selection", "batch plan", "qrels sidecar", "mechanisms", "feature catalog", "feature descriptions", "pair evidence", "predictions"]
+    "artifact_binding": ["protocol", "lockfile", "git commit", "candidate manifest", "screen selection", "capacity-smoke selection", "batch plan", "qrels sidecar", "mechanisms", "feature catalog", "feature descriptions", "description shuffle map", "pair evidence", "coverage report", "predictions"]
+  },
+  "pre_screen_operational_gate": {
+    "minimum_pair_coverage_rate": 0.20,
+    "minimum_query_coverage_rate": 0.75,
+    "required_maximum_batch_size": 64,
+    "required_parse_and_schema_completion_rate": 1.0,
+    "failure_policy": "repair only an implementation or API-compatibility defect without viewing qrels-based outcomes; otherwise stop before the 108-query verifier screen"
+  },
+  "development_go_no_rule": {
+    "minimum_known_rescues_recovered": 33,
+    "maximum_dense_hits_lost": 4,
+    "minimum_net_utility": 29,
+    "minimum_arm_net_utility_margin": 5,
+    "minimum_bootstrap_positive_fraction": 0.90,
+    "bootstrap_samples": 10000,
+    "bootstrap_seed_base": 2026090200,
+    "random_source_tail_alpha": 0.05,
+    "minimum_queries_with_usable_evidence_per_stratum": 41,
+    "maximum_incremental_dense_losses": 1,
+    "candidate_source_gate": "the 200-hit unpadded SAE source oracle must exceed the higher-method 95th percentile of all 64 random oracles with plus-one tail probability at most 0.05; SAE structure must also pass the absolute thresholds and beat dense-30 plus every one of the three prespecified random controls by the margin and stability thresholds",
+    "feature_grounding_gate": "aligned descriptions must pass the absolute and coverage thresholds and beat structure-only, activation-only, and shuffled descriptions by the margin and stability thresholds, without fewer rescues or more than one additional dense loss",
+    "random_match_policy": "a net-utility margin below five, or a paired bootstrap positive fraction below 0.90, fails; an exact margin of five passes this component",
+    "decision_policy": {
+      "full_go": "candidate-source and feature-grounding gates both pass; freeze both for an external benchmark",
+      "narrow_structure_go": "candidate-source passes and feature-grounding fails; drop feature-grounding as a contribution",
+      "narrow_feature_go": "candidate-source fails but the full feature gate passes and aligned descriptions also clear the dense-30 and all-random diagnostic utility guardrails; make no candidate-source-specificity claim",
+      "no_go": "all other outcomes stop Structural Rescue on SCAR; do not tune thresholds, prompts, scoring, seeds, or reshuffle descriptions"
+    }
   },
   "stop_rules": [
     "Do not modify the frozen retrieval, Latent Escape, or Latent Choice protocols.",
     "Do not expose qrels or rescue labels to extraction, feature description, or verification.",
     "Do not tune on or reuse the 120 untouched Latent Choice prompts.",
-    "Dense and random arm ordering on the outcome-selected screen is diagnostic only and cannot establish SAE specificity.",
-    "Treat the feature-grounded minus structure-only comparison only as the effect of adding this SAE-derived feature-evidence bundle, separate from candidate-source value.",
+    "Dense and random arm ordering on the outcome-selected screen is diagnostic only and cannot establish confirmatory SAE specificity.",
+    "Do not change the three prespecified verifier random controls or select a favorable draw from the 64-pair oracle distribution.",
+    "Treat aligned-minus-activation and aligned-minus-shuffled comparisons as development evidence about description semantics, separate from candidate-source value.",
+    "Because 24 query superpools span two fixed request batches, treat any aligned-description advantage as a batch-level verifier-method effect rather than local explanation faithfulness.",
+    "After any qrels-based 108-query result is opened, do not alter prompts, scoring, pools, seeds, shuffle mapping, thresholds, or feature eligibility.",
     "A passing screen licenses only method freezing and evaluation on an outcome-independent external benchmark.",
     "Do not run a confirmatory analysis until the complete method and an independent benchmark are frozen."
   ]

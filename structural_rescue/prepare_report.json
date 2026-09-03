@@ -1,8 +1,8 @@
 {
-  "study_id": "feature-grounded-structural-rescue-development-v1",
+  "study_id": "feature-grounded-structural-rescue-development-v2",
   "status": "prepared_no_llm_scoring",
   "development_only": true,
-  "protocol_sha256": "e7401d11823d76c846a58c9f88192268682b0f6bdc447b743d89fe3e1389181d",
+  "protocol_sha256": "89c5136145bb71456c64dee155c1f56b10d6aa0f67b67ee5c158d3f8c77b1ef8",
   "source_sha256": {
     "scar": "12883db11de17454b3a4ae30a109f4b64861125b1e94846e17b8edc3f8a12369",
     "embedding_cache": "ba182c6447de5fd4495e24d04df3e5bbd163737eaf09732401042fe6a76f7446",
@@ -17,22 +17,127 @@
     "sae_union_hits": 200,
     "known_sae_rescues": 54,
     "known_sae_rescues_beyond_dense30": 19,
-    "random_union_hits": 193,
-    "sae_union_size": {
+    "sae_union_padded30_hits": 258,
+    "random_source_oracle_hit_distribution": {
+      "draws": 64,
+      "values": [
+        193,
+        191,
+        192,
+        197,
+        200,
+        189,
+        203,
+        195,
+        203,
+        195,
+        207,
+        198,
+        199,
+        195,
+        193,
+        201,
+        200,
+        204,
+        195,
+        199,
+        203,
+        195,
+        190,
+        191,
+        205,
+        195,
+        194,
+        191,
+        179,
+        202,
+        189,
+        188,
+        187,
+        187,
+        190,
+        216,
+        198,
+        198,
+        184,
+        195,
+        200,
+        201,
+        191,
+        203,
+        201,
+        188,
+        190,
+        197,
+        194,
+        203,
+        195,
+        201,
+        194,
+        189,
+        189,
+        193,
+        189,
+        192,
+        195,
+        201,
+        199,
+        193,
+        193,
+        197
+      ],
+      "min": 179,
+      "median": 195.0,
+      "mean": 195.53125,
+      "max": 216,
+      "q05_higher": 188,
+      "q95_higher": 204,
+      "sae_source_oracle_hits": 200,
+      "draws_at_least_sae": 18,
+      "plus_one_tail_probability": 0.2923076923076923
+    },
+    "verified_random_source_oracle_hits": [
+      193,
+      191,
+      192
+    ],
+    "verified_random_padded30_hits": [
+      251,
+      247,
+      248
+    ],
+    "sae_source_union_size": {
       "min": 11,
       "median": 19.0,
       "mean": 19.10600706713781,
       "max": 29
     },
-    "random_union_size": {
-      "min": 13,
+    "random_source_union_size": {
+      "min": 10,
       "median": 22.0,
-      "mean": 22.09540636042403,
+      "mean": 22.19611307420495,
       "max": 30
-    }
+    },
+    "verifier_candidate_pool_size": 30,
+    "all_verifier_candidate_pools_exactly_30": true
+  },
+  "random_source_oracle": {
+    "seed_namespace": "structural-rescue-random-source-oracle-v1",
+    "seed_pair_count": 64,
+    "seed_pairs_sha256": "5c53305128f85ec37ca5efc299395200569295a67ee754bde0714067cdf53d72",
+    "verified_pair_indices": [
+      0,
+      1,
+      2
+    ]
   },
   "feature_catalog_rows": 256,
-  "pair_feature_evidence_rows": 10814,
+  "feature_description_shuffle_map": {
+    "mapping_count": 256,
+    "frequency_bins_per_representation": 8,
+    "scheme": "frequency_bin_hash_ordered_one_step_cyclic_derangement"
+  },
+  "pair_feature_evidence_rows": 16980,
   "verifier_screen": {
     "selection": "outcome_stratified_exploratory_screen",
     "known_sae_rescue_queries": 54,
@@ -41,15 +146,26 @@
     "control_pair_groups": 47,
     "confirmatory_or_population_recall_claim_allowed": false
   },
+  "capacity_smoke_selection": {
+    "selection": "qrels_free_largest_superpool_preflight",
+    "query_ids": [
+      "a_to_b:145"
+    ],
+    "superpool_sizes": [
+      85
+    ],
+    "qrels_used": false,
+    "population_estimate_allowed": false
+  },
   "verifier_batch_plan": {
     "batch_size": 64,
     "query_count": 108,
-    "batch_count": 108
+    "batch_count": 132
   },
   "artifacts": {
     "candidate_manifest": {
       "path": "structural_rescue/outputs/development/candidate_manifest.jsonl",
-      "sha256": "8408e716594c1bc18b962691a75c23a0308d81a9434ffceab1468fa8d5e97e51"
+      "sha256": "11280cb74961bacd3547c9ae20d3f7a77683e40d57edbdf60043f6ab0735b931"
     },
     "qrels_sidecar": {
       "path": "structural_rescue/outputs/development/qrels_sidecar.jsonl",
@@ -59,17 +175,25 @@
       "path": "structural_rescue/outputs/development/feature_catalog.jsonl",
       "sha256": "e01bbd0e084419a648e978501576efdd04c7c57410bd7a080b39603b66d5869f"
     },
+    "feature_description_shuffle_map": {
+      "path": "structural_rescue/outputs/development/feature_description_shuffle_map.json",
+      "sha256": "5ee10929c8f04cc6fbee61335817916af9a255fada88caab7d78ba7062569cbd"
+    },
     "pair_feature_evidence": {
       "path": "structural_rescue/outputs/development/pair_feature_evidence.jsonl",
-      "sha256": "7e0ddbe607fc9a674e2d5d0c69c768746a0ceb6c7d10d95a23f2e1edfa1b5857"
+      "sha256": "452679eaeb67accb7730b99757b24b4c7a014112dd2d36afb3bb8a84d1b8c3a8"
     },
     "screen_selection": {
       "path": "structural_rescue/outputs/development/screen_selection.json",
       "sha256": "235e5a287d0fb3e84fb21670f5f557d3e45281a5ea2c6766e5a8899cf1c7108a"
     },
+    "capacity_smoke_selection": {
+      "path": "structural_rescue/outputs/development/capacity_smoke_selection.json",
+      "sha256": "90c6742194d64ca79f3f930429f0bb5bff611e2afb2f401fcfd855c483a90a43"
+    },
     "verifier_batch_plan": {
       "path": "structural_rescue/outputs/development/verifier_batch_plan.json",
-      "sha256": "e95aaba441d5e02390e1d7f373a2332d8a3843b6f11df875a19fddb4927ea5c1"
+      "sha256": "164054d26582f4a37d7b4987c678cd154e1803fcc21133a9ad7d3ffb957eec5b"
     }
   },
   "claim_boundary": "Candidate preparation is not a verifier result, an SAE causal test, or evidence of serendipity."

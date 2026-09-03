@@ -43,9 +43,40 @@ SHARED_FEATURES_PER_PAIR = 3
 DESCRIBED_FEATURES_PER_REPRESENTATION = 128
 DESCRIPTION_EXAMPLES_PER_FEATURE = 6
 FEATURE_DESCRIPTION_BATCH_SIZE = 4
-RANDOM_SEEDS = (2026090201, 2026090202)
+FEATURE_DESCRIPTION_FREQUENCY_BINS = 8
+FEATURE_DESCRIPTION_SHUFFLE_NAMESPACE = (
+    "structural-rescue-feature-description-shuffle-v1"
+)
+RANDOM_SEED_NAMESPACE = "structural-rescue-random-source-oracle-v1"
+RANDOM_SEED_PAIR_COUNT = 64
+LEGACY_RANDOM_SEED_PAIR = (2026090201, 2026090202)
+VERIFIED_RANDOM_PAIR_INDICES = (0, 1, 2)
 SCREEN_DENSE_CONTROL_COUNT = 54
 VERIFIER_BATCH_SIZE = 64
+
+
+def _derive_random_seed(pair_index: int, member_index: int) -> int:
+    if pair_index < 0 or member_index not in (0, 1):
+        raise ValueError("Random seed coordinates are out of range")
+    payload = (
+        f"{RANDOM_SEED_NAMESPACE}\0pair={pair_index}\0member={member_index}"
+    ).encode("utf-8")
+    return int.from_bytes(hashlib.sha256(payload).digest()[:4], "big")
+
+
+RANDOM_SEED_PAIRS = (
+    LEGACY_RANDOM_SEED_PAIR,
+    *(
+        tuple(
+            _derive_random_seed(pair_index, member_index)
+            for member_index in (0, 1)
+        )
+        for pair_index in range(1, RANDOM_SEED_PAIR_COUNT)
+    ),
+)
+# Kept as a narrow compatibility alias for callers that previously imported the
+# single control's two seeds. New preparation always uses RANDOM_SEED_PAIRS.
+RANDOM_SEEDS = LEGACY_RANDOM_SEED_PAIR
 
 CHECKPOINTS = {
     "cslg": {
@@ -61,9 +92,13 @@ CHECKPOINTS = {
 ARM_NAMES = (
     "dense_ranking",
     "dense30_structure",
-    "sae_union_structure",
-    "random_union_structure",
-    "sae_union_feature_grounded",
+    "sae_union_padded30_structure",
+    "random_union_padded30_structure_1",
+    "random_union_padded30_structure_2",
+    "random_union_padded30_structure_3",
+    "sae_union_padded30_activation_only",
+    "sae_union_padded30_aligned_description",
+    "sae_union_padded30_shuffled_description",
 )
 
 
@@ -90,6 +125,9 @@ def canonical_json_sha256(value: Any) -> str:
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+RANDOM_SEED_PAIRS_SHA256 = canonical_json_sha256(RANDOM_SEED_PAIRS)
 
 
 def deterministic_candidate_order(
@@ -139,6 +177,125 @@ def verifier_batch_plan(
     }
 
 
+def largest_batch_preflight(
+    prepared: Sequence[dict[str, Any]], *, query_count: int = 2
+) -> dict[str, Any]:
+    """Select largest verifier contexts without consulting outcomes or qrels."""
+
+    if query_count <= 0:
+        raise ValueError("query_count must be positive")
+    if not prepared:
+        raise ValueError("No prepared queries available for preflight")
+    query_ids = [str(row["query_id"]) for row in prepared]
+    if len(query_ids) != len(set(query_ids)):
+        raise ValueError("Prepared queries contain duplicate query IDs")
+    ordered = sorted(
+        prepared,
+        key=lambda row: (
+            -len(set(map(str, row["superpool"]))),
+            hashlib.sha256(
+                f"structural-rescue-largest-batch-v1\0{row['query_id']}".encode()
+            ).hexdigest(),
+            str(row["query_id"]),
+        ),
+    )
+    chosen = ordered[:query_count]
+    if len(chosen) != query_count:
+        raise ValueError(
+            f"Requested {query_count} preflight queries, found {len(chosen)}"
+        )
+    return {
+        "selection": "qrels_free_largest_superpool_preflight",
+        "query_ids": [str(row["query_id"]) for row in chosen],
+        "superpool_sizes": [len(set(map(str, row["superpool"]))) for row in chosen],
+        "qrels_used": False,
+        "population_estimate_allowed": False,
+    }
+
+
+def feature_description_shuffle_map(
+    catalog: Sequence[dict[str, Any]],
+) -> dict[str, Any]:
+    """Freeze a frequency-matched cyclic derangement before descriptions exist."""
+
+    by_representation: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for raw_row in catalog:
+        row = dict(raw_row)
+        by_representation[str(row["representation"])].append(row)
+    if not by_representation:
+        raise ValueError("Cannot construct a shuffle map from an empty catalog")
+
+    mappings: list[dict[str, Any]] = []
+    bin_counts: dict[str, list[int]] = {}
+    for representation in sorted(by_representation):
+        rows = sorted(
+            by_representation[representation],
+            key=lambda row: (
+                int(row["corpus_active_count"]),
+                str(row["feature_key"]),
+            ),
+        )
+        if len(rows) != DESCRIBED_FEATURES_PER_REPRESENTATION:
+            raise ValueError(
+                f"Expected {DESCRIBED_FEATURES_PER_REPRESENTATION} catalog features "
+                f"for {representation}, found {len(rows)}"
+            )
+        bins = np.array_split(
+            np.asarray(rows, dtype=object), FEATURE_DESCRIPTION_FREQUENCY_BINS
+        )
+        bin_counts[representation] = [int(len(bin_rows)) for bin_rows in bins]
+        if len(set(bin_counts[representation])) != 1:
+            raise AssertionError("Frequency bins must have equal feature counts")
+        for bin_index, raw_bin_rows in enumerate(bins):
+            bin_rows = list(raw_bin_rows)
+            if len(bin_rows) < 2:
+                raise ValueError("Every frequency bin needs at least two features")
+            ordered = sorted(
+                bin_rows,
+                key=lambda row: (
+                    hashlib.sha256(
+                        (
+                            f"{FEATURE_DESCRIPTION_SHUFFLE_NAMESPACE}\0"
+                            f"{representation}\0{bin_index}\0{row['feature_key']}"
+                        ).encode("utf-8")
+                    ).hexdigest(),
+                    str(row["feature_key"]),
+                ),
+            )
+            for source_index, source in enumerate(ordered):
+                donor = ordered[(source_index + 1) % len(ordered)]
+                if source["feature_key"] == donor["feature_key"]:
+                    raise AssertionError("Description shuffle must be a derangement")
+                mappings.append(
+                    {
+                        "source_feature_key": str(source["feature_key"]),
+                        "source_corpus_active_count": int(
+                            source["corpus_active_count"]
+                        ),
+                        "donor_feature_key": str(donor["feature_key"]),
+                        "donor_corpus_active_count": int(
+                            donor["corpus_active_count"]
+                        ),
+                        "representation": representation,
+                        "frequency_bin": bin_index,
+                        "bin_feature_count": len(ordered),
+                    }
+                )
+    mappings.sort(key=lambda row: row["source_feature_key"])
+    if len({row["source_feature_key"] for row in mappings}) != len(mappings):
+        raise AssertionError("Shuffle sources must be unique")
+    if len({row["donor_feature_key"] for row in mappings}) != len(mappings):
+        raise AssertionError("Shuffle donors must form a permutation")
+    return {
+        "scheme": "frequency_bin_hash_ordered_one_step_cyclic_derangement",
+        "namespace": FEATURE_DESCRIPTION_SHUFFLE_NAMESPACE,
+        "frequency_bins_per_representation": FEATURE_DESCRIPTION_FREQUENCY_BINS,
+        "bin_feature_counts": bin_counts,
+        "mapping_count": len(mappings),
+        "mappings": mappings,
+    }
+
+
 def write_json(path: Path, value: Any, *, overwrite: bool = False) -> None:
     if path.exists() and not overwrite:
         raise FileExistsError(f"Refusing to overwrite {path}; pass --overwrite")
@@ -166,8 +323,25 @@ def _strict_protocol(path: Path = DEFAULT_PROTOCOL) -> dict[str, Any]:
         raise ValueError("Structural Rescue protocol must remain development-only")
     if protocol.get("scope", {}).get("latent_choice_test_prompts_may_be_used") is not False:
         raise ValueError("Latent Choice test prompts must be forbidden")
-    if tuple(protocol["candidate_generation"]["random_seeds"]) != RANDOM_SEEDS:
-        raise ValueError("Protocol random seeds do not match implementation")
+    candidate_generation = protocol["candidate_generation"]
+    if candidate_generation.get("random_seed_namespace") != RANDOM_SEED_NAMESPACE:
+        raise ValueError("Protocol random seed namespace does not match implementation")
+    if candidate_generation.get("random_seed_pair_count") != RANDOM_SEED_PAIR_COUNT:
+        raise ValueError(
+            "Protocol random seed pair count does not match implementation"
+        )
+    if (
+        candidate_generation.get("random_seed_pairs_sha256")
+        != RANDOM_SEED_PAIRS_SHA256
+    ):
+        raise ValueError("Protocol random seed pairs do not match implementation")
+    if (
+        tuple(candidate_generation.get("verified_random_pair_indices", ()))
+        != VERIFIED_RANDOM_PAIR_INDICES
+    ):
+        raise ValueError(
+            "Protocol verified random controls do not match implementation"
+        )
     return protocol
 
 
@@ -186,6 +360,32 @@ def stable_union(*rankings: Sequence[int]) -> list[int]:
                 seen.add(candidate)
                 ordered.append(candidate)
     return ordered
+
+
+def pad_pool_to_size(
+    source_pool: Sequence[int],
+    dense_ranking: Sequence[int],
+    *,
+    size: int = DENSE_POOL_SIZE,
+) -> list[int]:
+    """Append the next unused dense candidates without changing source membership."""
+
+    source = [int(value) for value in source_pool]
+    if len(source) != len(set(source)):
+        raise ValueError("Source pool must not contain duplicates")
+    if len(source) > size:
+        raise ValueError(
+            f"Source pool of size {len(source)} exceeds target size {size}"
+        )
+    padded = stable_union(source, dense_ranking)
+    if len(padded) < size:
+        raise ValueError(
+            f"Only {len(padded)} unique candidates available for size {size}"
+        )
+    result = padded[:size]
+    if result[: len(source)] != source or not set(source).issubset(result):
+        raise AssertionError("Padding changed the unpadded source pool")
+    return result
 
 
 def canonical_pair_group(first: str, second: str) -> str:
@@ -265,9 +465,7 @@ def encode_sae(raw_embeddings: np.ndarray, checkpoint: Path) -> Representation:
     return make_representation(np.concatenate(batches, axis=0))
 
 
-def random_representation(raw_embeddings: np.ndarray, *, seed: int) -> Representation:
-    """Dimension/sparsity-matched random projection; not an SAE surrogate."""
-
+def _random_sparse_values(raw_embeddings: np.ndarray, *, seed: int) -> np.ndarray:
     projector = SparseRandomProjection(
         n_components=9216,
         density="auto",
@@ -283,7 +481,13 @@ def random_representation(raw_embeddings: np.ndarray, *, seed: int) -> Represent
     top_values = np.maximum(projected[row_indices, top_indices], 0.0)
     sparse = np.zeros_like(projected, dtype=np.float32)
     sparse[row_indices, top_indices] = top_values
-    return make_representation(sparse)
+    return sparse
+
+
+def random_representation(raw_embeddings: np.ndarray, *, seed: int) -> Representation:
+    """Dimension/sparsity-matched random projection; not an SAE surrogate."""
+
+    return make_representation(_random_sparse_values(raw_embeddings, seed=seed))
 
 
 def _percentile(representation: Representation, feature_id: int, value: float) -> float:
@@ -394,12 +598,66 @@ def _checkpoint_representation(
     return encode_sae(raw_embeddings, config["path"])
 
 
+def _random_source_unions(
+    raw_embeddings: np.ndarray,
+    dense_scores: dict[str, np.ndarray],
+    cross_domain_row_ids: np.ndarray,
+    *,
+    n_rows: int,
+) -> list[dict[str, list[list[int]]]]:
+    """Materialize 64 random source pools while retaining no projection matrices."""
+
+    dense_rankings = {
+        direction: [_topk(row, TOP_K) for row in dense_scores[direction]]
+        for direction in ("a_to_b", "b_to_a")
+    }
+    unions: list[dict[str, list[list[int]]]] = []
+    for seed_pair in RANDOM_SEED_PAIRS:
+        component_rankings: list[dict[str, list[list[int]]]] = []
+        for seed in seed_pair:
+            random_unit = l2_normalize(
+                _random_sparse_values(raw_embeddings, seed=seed)
+            )
+            scores = score_from_embeddings(
+                random_unit[:n_rows],
+                random_unit[n_rows:],
+                cross_domain_row_ids,
+            )
+            component_rankings.append(
+                {
+                    direction: [_topk(row, TOP_K) for row in scores[direction]]
+                    for direction in ("a_to_b", "b_to_a")
+                }
+            )
+            del scores, random_unit
+        unions.append(
+            {
+                direction: [
+                    stable_union(
+                        dense_rankings[direction][position],
+                        component_rankings[0][direction][position],
+                        component_rankings[1][direction][position],
+                    )
+                    for position in range(len(cross_domain_row_ids))
+                ]
+                for direction in ("a_to_b", "b_to_a")
+            }
+        )
+    return unions
+
+
 def _query_rows(
     rows: Sequence[dict[str, Any]],
     cross_domain_row_ids: np.ndarray,
     score_matrices: dict[str, dict[str, np.ndarray]],
+    random_source_unions: Sequence[dict[str, Sequence[Sequence[int]]]],
     complementarity: Sequence[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if len(random_source_unions) != RANDOM_SEED_PAIR_COUNT:
+        raise ValueError(
+            f"Expected {RANDOM_SEED_PAIR_COUNT} random source pools, "
+            f"found {len(random_source_unions)}"
+        )
     frozen_by_id = {str(row["query_id"]): row for row in complementarity}
     prepared: list[dict[str, Any]] = []
     qrels: list[dict[str, Any]] = []
@@ -426,20 +684,49 @@ def _query_rows(
             sae_union = stable_union(
                 rankings["dense"], rankings["cslg"], rankings["astroph"]
             )
-            random_union = stable_union(
-                rankings["dense"], rankings["random_1"], rankings["random_2"]
-            )
-            if len(sae_union) > 30 or len(random_union) > 30:
-                raise AssertionError("Three top-10 lists cannot yield more than 30 candidates")
+            random_unions = [
+                [int(value) for value in source[direction][position]]
+                for source in random_source_unions
+            ]
+            if len(sae_union) > 30 or any(
+                len(random_union) > 30 for random_union in random_unions
+            ):
+                raise AssertionError(
+                    "Three top-10 lists cannot yield more than 30 candidates"
+                )
+
+            sae_padded = pad_pool_to_size(sae_union, dense30)
+            verified_random_padded = [
+                pad_pool_to_size(random_unions[index], dense30)
+                for index in VERIFIED_RANDOM_PAIR_INDICES
+            ]
 
             pools_as_indices = {
                 "dense_ranking": rankings["dense"],
                 "dense30_structure": dense30,
-                "sae_union_structure": sae_union,
-                "random_union_structure": random_union,
-                "sae_union_feature_grounded": sae_union,
+                "sae_union_padded30_structure": sae_padded,
+                "random_union_padded30_structure_1": verified_random_padded[0],
+                "random_union_padded30_structure_2": verified_random_padded[1],
+                "random_union_padded30_structure_3": verified_random_padded[2],
+                "sae_union_padded30_activation_only": sae_padded,
+                "sae_union_padded30_aligned_description": sae_padded,
+                "sae_union_padded30_shuffled_description": sae_padded,
             }
-            superpool = stable_union(dense30, sae_union, random_union)
+            if tuple(pools_as_indices) != ARM_NAMES:
+                raise AssertionError(
+                    "Candidate arm order drifted from the frozen contract"
+                )
+            for arm, indices in pools_as_indices.items():
+                expected_size = TOP_K if arm == "dense_ranking" else DENSE_POOL_SIZE
+                if len(indices) != expected_size or len(set(indices)) != expected_size:
+                    raise AssertionError(
+                        f"{arm} must contain exactly {expected_size} unique candidates"
+                    )
+            superpool = stable_union(
+                dense30,
+                sae_padded,
+                *verified_random_padded,
+            )
             side = _candidate_side(direction)
             dense_scores = score_matrices["dense"][direction][position]
             prepared.append(
@@ -454,6 +741,13 @@ def _query_rows(
                     "pools": {
                         arm: _candidate_ids(indices, rows, direction)
                         for arm, indices in pools_as_indices.items()
+                    },
+                    "source_pools": {
+                        "sae_union": _candidate_ids(sae_union, rows, direction),
+                        "random_unions": [
+                            _candidate_ids(indices, rows, direction)
+                            for indices in random_unions
+                        ],
                     },
                     "superpool": _candidate_ids(superpool, rows, direction),
                     "dense_scores": {
@@ -483,10 +777,40 @@ def _preflight(prepared: Sequence[dict[str, Any]], qrels: Sequence[dict[str, Any
         gold = set(qrels_by_id[query["query_id"]]["gold_candidate_ids"])
         return bool(gold.intersection(query["pools"][arm]))
 
+    def source_hit(query: dict[str, Any], candidates: Sequence[str]) -> bool:
+        gold = set(qrels_by_id[query["query_id"]]["gold_candidate_ids"])
+        return bool(gold.intersection(map(str, candidates)))
+
+    def distribution(values: Sequence[int]) -> dict[str, Any]:
+        array = np.asarray(values, dtype=float)
+        return {
+            "draws": len(values),
+            "values": [int(value) for value in values],
+            "min": int(array.min()),
+            "median": float(np.median(array)),
+            "mean": float(array.mean()),
+            "max": int(array.max()),
+        }
+
     dense10_hits = sum(hit(row, "dense_ranking") for row in prepared)
     dense30_hits = sum(hit(row, "dense30_structure") for row in prepared)
-    sae_union_hits = sum(hit(row, "sae_union_structure") for row in prepared)
-    random_union_hits = sum(hit(row, "random_union_structure") for row in prepared)
+    sae_union_hits = sum(
+        source_hit(row, row["source_pools"]["sae_union"]) for row in prepared
+    )
+    sae_padded_hits = sum(
+        hit(row, "sae_union_padded30_structure") for row in prepared
+    )
+    random_source_oracle_hits = [
+        sum(
+            source_hit(row, row["source_pools"]["random_unions"][pair_index])
+            for row in prepared
+        )
+        for pair_index in range(RANDOM_SEED_PAIR_COUNT)
+    ]
+    random_padded_hits = [
+        sum(hit(row, f"random_union_padded30_structure_{offset}") for row in prepared)
+        for offset in range(1, len(VERIFIED_RANDOM_PAIR_INDICES) + 1)
+    ]
     known_rescues = sum(row["known_sae_rescue"] for row in qrels)
     rescue_beyond_dense30 = sum(
         row["known_sae_rescue"] and not hit(query, "dense30_structure")
@@ -511,26 +835,65 @@ def _preflight(prepared: Sequence[dict[str, Any]], qrels: Sequence[dict[str, Any
     if observed != expected:
         raise ValueError(f"Frozen retrieval preflight drifted: {observed} != {expected}")
     sae_sizes = np.asarray(
-        [len(row["pools"]["sae_union_structure"]) for row in prepared], dtype=float
+        [len(row["source_pools"]["sae_union"]) for row in prepared], dtype=float
     )
     random_sizes = np.asarray(
-        [len(row["pools"]["random_union_structure"]) for row in prepared], dtype=float
+        [
+            len(source_pool)
+            for row in prepared
+            for source_pool in row["source_pools"]["random_unions"]
+        ],
+        dtype=float,
+    )
+    exact_padded_arms = tuple(arm for arm in ARM_NAMES if arm != "dense_ranking")
+    if any(
+        len(row["pools"][arm]) != DENSE_POOL_SIZE
+        or len(set(row["pools"][arm])) != DENSE_POOL_SIZE
+        for row in prepared
+        for arm in exact_padded_arms
+    ):
+        raise AssertionError(
+            "Every verifier arm must have exactly 30 unique candidates"
+        )
+    random_oracle_distribution = distribution(random_source_oracle_hits)
+    random_oracle_array = np.asarray(random_source_oracle_hits, dtype=float)
+    random_oracle_distribution.update(
+        {
+            "q05_higher": int(np.quantile(random_oracle_array, 0.05, method="higher")),
+            "q95_higher": int(np.quantile(random_oracle_array, 0.95, method="higher")),
+            "sae_source_oracle_hits": sae_union_hits,
+            "draws_at_least_sae": int(
+                np.count_nonzero(random_oracle_array >= sae_union_hits)
+            ),
+            "plus_one_tail_probability": float(
+                (1 + np.count_nonzero(random_oracle_array >= sae_union_hits))
+                / (1 + len(random_oracle_array))
+            ),
+        }
     )
     return {
         **observed,
-        "random_union_hits": random_union_hits,
-        "sae_union_size": {
+        "sae_union_padded30_hits": sae_padded_hits,
+        "random_source_oracle_hit_distribution": random_oracle_distribution,
+        "verified_random_source_oracle_hits": [
+            random_source_oracle_hits[index]
+            for index in VERIFIED_RANDOM_PAIR_INDICES
+        ],
+        "verified_random_padded30_hits": random_padded_hits,
+        "sae_source_union_size": {
             "min": int(sae_sizes.min()),
             "median": float(np.median(sae_sizes)),
             "mean": float(sae_sizes.mean()),
             "max": int(sae_sizes.max()),
         },
-        "random_union_size": {
+        "random_source_union_size": {
             "min": int(random_sizes.min()),
             "median": float(np.median(random_sizes)),
             "mean": float(random_sizes.mean()),
             "max": int(random_sizes.max()),
         },
+        "verifier_candidate_pool_size": DENSE_POOL_SIZE,
+        "all_verifier_candidate_pools_exactly_30": True,
     }
 
 
@@ -589,7 +952,9 @@ def _feature_catalog_and_pair_evidence(
         direction = str(query["direction"])
         query_index = row_index_by_id[int(str(query["query_system_id"]).split(":", 1)[1])]
         query_global = _query_global(direction, query_index, n_rows)
-        for candidate_id in query["pools"]["sae_union_structure"]:
+        # Feature-description selection is based only on the original SAE
+        # candidate source; dense padding must not change which features exist.
+        for candidate_id in query["source_pools"]["sae_union"]:
             candidate_index = _candidate_index(candidate_id, row_index_by_id)
             candidate_global = _candidate_global(direction, candidate_index, n_rows)
             for namespace, representation in representations.items():
@@ -646,7 +1011,9 @@ def _feature_catalog_and_pair_evidence(
         direction = str(query["direction"])
         query_index = row_index_by_id[int(str(query["query_system_id"]).split(":", 1)[1])]
         query_global = _query_global(direction, query_index, n_rows)
-        for candidate_id in query["pools"]["sae_union_structure"]:
+        # Pair evidence must cover the full pool that the three SAE evidence
+        # arms score, including candidates appended from dense top-30.
+        for candidate_id in query["pools"]["sae_union_padded30_structure"]:
             candidate_index = _candidate_index(candidate_id, row_index_by_id)
             candidate_global = _candidate_global(direction, candidate_index, n_rows)
             evidence: list[dict[str, Any]] = []
@@ -712,36 +1079,60 @@ def prepare_development(
             astroph.unit[:n_rows], astroph.unit[n_rows:], cross_domain_row_ids
         ),
     }
-    for offset, seed in enumerate(RANDOM_SEEDS, start=1):
-        random = random_representation(raw_embeddings, seed=seed)
-        score_matrices[f"random_{offset}"] = score_from_embeddings(
-            random.unit[:n_rows], random.unit[n_rows:], cross_domain_row_ids
-        )
-        del random
+    random_source_unions = _random_source_unions(
+        raw_embeddings,
+        score_matrices["dense"],
+        cross_domain_row_ids,
+        n_rows=n_rows,
+    )
 
     prepared, qrels = _query_rows(
-        rows, cross_domain_row_ids, score_matrices, complementarity
+        rows,
+        cross_domain_row_ids,
+        score_matrices,
+        random_source_unions,
+        complementarity,
     )
     preflight = _preflight(prepared, qrels)
     screen = development_screen(qrels)
+    screen_ids = set(map(str, screen["query_ids"]))
+    capacity_selection = largest_batch_preflight(
+        [row for row in prepared if str(row["query_id"]) in screen_ids],
+        query_count=1,
+    )
     batch_plan = verifier_batch_plan(prepared, screen)
     catalog, pair_evidence = _feature_catalog_and_pair_evidence(
         prepared, rows, {"cslg": cslg, "astroph": astroph}
     )
+    description_shuffle = feature_description_shuffle_map(catalog)
 
     paths = {
         "candidate_manifest": output_dir / "candidate_manifest.jsonl",
         "qrels_sidecar": output_dir / "qrels_sidecar.jsonl",
         "feature_catalog": output_dir / "feature_catalog.jsonl",
+        "feature_description_shuffle_map": (
+            output_dir / "feature_description_shuffle_map.json"
+        ),
         "pair_feature_evidence": output_dir / "pair_feature_evidence.jsonl",
         "screen_selection": output_dir / "screen_selection.json",
+        "capacity_smoke_selection": output_dir / "capacity_smoke_selection.json",
         "verifier_batch_plan": output_dir / "verifier_batch_plan.json",
     }
     write_jsonl(paths["candidate_manifest"], prepared, overwrite=overwrite)
     write_jsonl(paths["qrels_sidecar"], qrels, overwrite=overwrite)
     write_jsonl(paths["feature_catalog"], catalog, overwrite=overwrite)
+    write_json(
+        paths["feature_description_shuffle_map"],
+        description_shuffle,
+        overwrite=overwrite,
+    )
     write_jsonl(paths["pair_feature_evidence"], pair_evidence, overwrite=overwrite)
     write_json(paths["screen_selection"], screen, overwrite=overwrite)
+    write_json(
+        paths["capacity_smoke_selection"],
+        capacity_selection,
+        overwrite=overwrite,
+    )
     write_json(paths["verifier_batch_plan"], batch_plan, overwrite=overwrite)
 
     report = {
@@ -757,11 +1148,25 @@ def prepare_development(
             "astroph_sae": sha256_file(CHECKPOINTS["astroph"]["path"]),
         },
         "preflight": preflight,
+        "random_source_oracle": {
+            "seed_namespace": RANDOM_SEED_NAMESPACE,
+            "seed_pair_count": RANDOM_SEED_PAIR_COUNT,
+            "seed_pairs_sha256": RANDOM_SEED_PAIRS_SHA256,
+            "verified_pair_indices": list(VERIFIED_RANDOM_PAIR_INDICES),
+        },
         "feature_catalog_rows": len(catalog),
+        "feature_description_shuffle_map": {
+            "mapping_count": description_shuffle["mapping_count"],
+            "frequency_bins_per_representation": description_shuffle[
+                "frequency_bins_per_representation"
+            ],
+            "scheme": description_shuffle["scheme"],
+        },
         "pair_feature_evidence_rows": len(pair_evidence),
         "verifier_screen": {
             key: value for key, value in screen.items() if key != "query_ids"
         },
+        "capacity_smoke_selection": capacity_selection,
         "verifier_batch_plan": {
             "batch_size": batch_plan["batch_size"],
             "query_count": batch_plan["query_count"],

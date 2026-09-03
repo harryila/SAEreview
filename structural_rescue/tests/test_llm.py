@@ -1,23 +1,36 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
 from structural_rescue.core import DEFAULT_PROTOCOL, sha256_file
 from structural_rescue.llm import (
     MODEL,
+    PROMPT_VERSION,
+    VERIFIER_EVIDENCE_MODES,
     feature_description_payload,
     mechanism_payload,
     pair_payload_hash,
+    response_usage_payload,
+    strip_verifier_feature_descriptions,
+    strip_verifier_feature_evidence,
     verdict_score,
     verifier_payload,
 )
 from structural_rescue.run import (
     _pair_feature_context,
     _validate_fixed_batch,
+    capacity_smoke_report,
+    evaluate_command,
+    FixtureBackend,
     PREPARED_FILENAMES,
+    extract_mechanisms,
+    matched_feature_contexts,
     normalize_empty_evidence_verdicts,
+    validate_capacity_smoke_report,
+    validate_coverage_report,
     validate_verdict_batch,
     validate_prepared_bundle,
 )
@@ -100,6 +113,7 @@ def test_feature_grounding_uses_opaque_alias_and_explicit_description() -> None:
     payload, _ = verifier_payload(
         GRAPH,
         [("b:2", GRAPH)],
+        evidence_mode="aligned_description",
         feature_evidence=evidence,
         feature_descriptions={"astroph:12": "oscillatory feedback"},
     )
@@ -107,6 +121,110 @@ def test_feature_grounding_uses_opaque_alias_and_explicit_description() -> None:
     assert feature["feature_key"] == "R2:F0012"
     assert feature["description"] == "oscillatory feedback"
     assert "astroph" not in json.dumps(payload)
+
+
+def test_verifier_evidence_modes_preserve_pairs_and_isolate_description_text() -> None:
+    candidates = [("b:2", GRAPH), ("b:3", {**GRAPH, "summary": "Another flow"})]
+    evidence = {
+        "b:2": [
+            {
+                "feature_key": "astroph:12",
+                "query_activation_percentile": 0.9,
+                "candidate_activation_percentile": 0.8,
+            }
+        ],
+        "b:3": [],
+    }
+    structure, structure_aliases = verifier_payload(GRAPH, candidates)
+    activation, activation_aliases = verifier_payload(
+        GRAPH,
+        candidates,
+        evidence_mode="activation_only",
+        feature_evidence=evidence,
+    )
+    aligned, aligned_aliases = verifier_payload(
+        GRAPH,
+        candidates,
+        evidence_mode="aligned_description",
+        feature_evidence=evidence,
+        feature_descriptions={"astroph:12": "oscillatory feedback"},
+    )
+    shuffled, shuffled_aliases = verifier_payload(
+        GRAPH,
+        candidates,
+        evidence_mode="shuffled_description",
+        feature_evidence=evidence,
+        feature_descriptions={"astroph:12": "material phase transition"},
+    )
+
+    assert tuple(VERIFIER_EVIDENCE_MODES) == (
+        "structure",
+        "activation_only",
+        "aligned_description",
+        "shuffled_description",
+    )
+    assert structure_aliases == activation_aliases == aligned_aliases == shuffled_aliases
+    assert [row["candidate_alias"] for row in structure["pairs"]] == ["C001", "C002"]
+    assert strip_verifier_feature_evidence(activation) == structure
+    assert strip_verifier_feature_evidence(aligned) == structure
+    assert strip_verifier_feature_evidence(shuffled) == structure
+    assert strip_verifier_feature_descriptions(aligned) == activation
+    assert strip_verifier_feature_descriptions(shuffled) == activation
+
+    activation_feature = activation["pairs"][0]["shared_feature_evidence"][0]
+    aligned_feature = aligned["pairs"][0]["shared_feature_evidence"][0]
+    shuffled_feature = shuffled["pairs"][0]["shared_feature_evidence"][0]
+    assert set(activation_feature) == {
+        "feature_key",
+        "query_activation_percentile",
+        "candidate_activation_percentile",
+    }
+    assert set(aligned_feature) == set(shuffled_feature) == {
+        *activation_feature,
+        "description",
+    }
+    assert aligned_feature["description"] == "oscillatory feedback"
+    assert shuffled_feature["description"] == "material phase transition"
+
+
+def test_verifier_evidence_modes_reject_incompatible_inputs() -> None:
+    evidence = {"b:2": []}
+    with pytest.raises(ValueError, match="Unknown"):
+        verifier_payload(GRAPH, [("b:2", GRAPH)], evidence_mode="unknown")
+    with pytest.raises(ValueError, match="cannot receive"):
+        verifier_payload(
+            GRAPH,
+            [("b:2", GRAPH)],
+            evidence_mode="structure",
+            feature_evidence=evidence,
+        )
+    with pytest.raises(ValueError, match="must omit"):
+        verifier_payload(
+            GRAPH,
+            [("b:2", GRAPH)],
+            evidence_mode="activation_only",
+            feature_evidence=evidence,
+            feature_descriptions={},
+        )
+
+
+def test_response_usage_payload_is_optional_and_json_safe() -> None:
+    class Usage:
+        def model_dump(self, *, mode: str):
+            assert mode == "json"
+            return {
+                "input_tokens": 120,
+                "output_tokens": 30,
+                "total_tokens": 150,
+            }
+
+    assert response_usage_payload(SimpleNamespace(usage=None)) is None
+    assert response_usage_payload(SimpleNamespace(usage=Usage())) == {
+        "input_tokens": 120,
+        "output_tokens": 30,
+        "total_tokens": 150,
+    }
+    assert response_usage_payload(SimpleNamespace(usage={"bad": object()})) is None
 
 
 def test_pair_feature_context_excludes_duplicate_content_and_incoherent() -> None:
@@ -129,6 +247,62 @@ def test_pair_feature_context_excludes_duplicate_content_and_incoherent() -> Non
     )
     assert usable == []
     assert counts == {"raw": 2, "incoherent": 1, "direct_example": 1, "usable": 0}
+
+
+def test_matched_feature_contexts_hold_rows_fixed_across_evidence_controls() -> None:
+    evidence = [
+        {
+            "feature_key": "cslg:4",
+            "query_activation_percentile": 0.9,
+            "candidate_activation_percentile": 0.8,
+        },
+        {
+            "feature_key": "cslg:7",
+            "query_activation_percentile": 0.7,
+            "candidate_activation_percentile": 0.6,
+        },
+    ]
+    descriptions = {
+        "cslg:4": {
+            "description": "negative feedback",
+            "coherent": True,
+            "request_example_content_sha256": ["example-four"],
+        },
+        "cslg:7": {
+            "description": "resource bottleneck",
+            "coherent": True,
+            "request_example_content_sha256": ["example-seven"],
+        },
+    }
+    usable, aligned, shuffled, counts = matched_feature_contexts(
+        evidence,
+        descriptions,
+        {"cslg:4": "cslg:7", "cslg:7": "cslg:4"},
+        query_content_sha256="query",
+        candidate_content_sha256="candidate",
+    )
+    assert usable == evidence
+    assert aligned == {
+        "cslg:4": "negative feedback",
+        "cslg:7": "resource bottleneck",
+    }
+    assert shuffled == {
+        "cslg:4": "resource bottleneck",
+        "cslg:7": "negative feedback",
+    }
+    assert counts["usable"] == 2
+
+    descriptions["cslg:7"]["request_example_content_sha256"] = ["query"]
+    usable, _, _, counts = matched_feature_contexts(
+        evidence,
+        descriptions,
+        {"cslg:4": "cslg:7", "cslg:7": "cslg:4"},
+        query_content_sha256="query",
+        candidate_content_sha256="candidate",
+    )
+    assert usable == []
+    assert counts["source_direct_example"] == 1
+    assert counts["donor_direct_example"] == 1
 
 
 def test_empty_evidence_verdict_fields_are_normalized_and_preserved() -> None:
@@ -189,6 +363,182 @@ def test_resume_rejects_partial_or_stale_fixed_batches() -> None:
             backend_model="m",
             current_git_commit="commit",
             label="test",
+        )
+
+
+def test_subset_mechanism_smoke_resumes_into_full_frozen_batches(tmp_path) -> None:
+    data_path = tmp_path / "scar.jsonl"
+    data_path.write_text(
+        "".join(
+            json.dumps(
+                {
+                    "id": index,
+                    "system_a": f"a{index}",
+                    "system_b": f"b{index}",
+                    "system_a_background": f"a background {index}",
+                    "system_b_background": f"b background {index}",
+                }
+            )
+            + "\n"
+            for index in range(400)
+        ),
+        encoding="utf-8",
+    )
+    candidate_path = tmp_path / "candidate_manifest.jsonl"
+    candidate_path.write_text(
+        "".join(
+            json.dumps(row) + "\n"
+            for row in (
+                {
+                    "query_id": "q1",
+                    "query_system_id": "a:0",
+                    "superpool": [f"b:{index}" for index in range(6)],
+                },
+                {
+                    "query_id": "q2",
+                    "query_system_id": "a:1",
+                    "superpool": [f"b:{index}" for index in range(6, 12)],
+                },
+            )
+        ),
+        encoding="utf-8",
+    )
+    screen_path = tmp_path / "screen_selection.json"
+    screen_path.write_text(json.dumps({"query_ids": ["q1", "q2"]}), encoding="utf-8")
+    capacity_path = tmp_path / "capacity.json"
+    capacity_path.write_text(json.dumps({"query_ids": ["q1"]}), encoding="utf-8")
+    output_path = tmp_path / "mechanisms.jsonl"
+
+    smoke = extract_mechanisms(
+        data_path=data_path,
+        candidate_path=candidate_path,
+        selection_path=capacity_path,
+        output_path=output_path,
+        backend=FixtureBackend(),
+        limit_queries=None,
+        overwrite=False,
+    )
+    assert smoke["required_systems"] == 7
+    assert smoke["completed_systems"] == 7
+    assert smoke["stable_batch_universe_systems"] == 14
+
+    full = extract_mechanisms(
+        data_path=data_path,
+        candidate_path=candidate_path,
+        selection_path=screen_path,
+        output_path=output_path,
+        backend=FixtureBackend(),
+        limit_queries=None,
+        overwrite=False,
+    )
+    assert full["required_systems"] == full["completed_systems"] == 14
+
+
+def test_coverage_report_is_bound_to_current_inputs(tmp_path) -> None:
+    selection_path = tmp_path / "screen_selection.json"
+    descriptions_path = tmp_path / "feature_descriptions.jsonl"
+    shuffle_path = tmp_path / "feature_description_shuffle_map.json"
+    coverage_path = tmp_path / "coverage_report.json"
+    selection_path.write_text('{"query_ids":["q1"]}\n', encoding="utf-8")
+    descriptions_path.write_text('{"feature_key":"f1"}\n', encoding="utf-8")
+    shuffle_path.write_text('{"mappings":[]}\n', encoding="utf-8")
+    coverage_path.write_text(
+        json.dumps(
+            {
+                "status": "passed",
+                "qrels_read": False,
+                "selection_sha256": sha256_file(selection_path),
+                "feature_descriptions_sha256": sha256_file(descriptions_path),
+                "feature_description_shuffle_map_sha256": sha256_file(shuffle_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+    validate_coverage_report(
+        coverage_path,
+        frozen_selection_path=selection_path,
+        feature_descriptions_path=descriptions_path,
+        feature_shuffle_path=shuffle_path,
+    )
+    descriptions_path.write_text('{"feature_key":"changed"}\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="stale.*feature_descriptions_sha256"):
+        validate_coverage_report(
+            coverage_path,
+            frozen_selection_path=selection_path,
+            feature_descriptions_path=descriptions_path,
+            feature_shuffle_path=shuffle_path,
+        )
+
+
+def test_capacity_smoke_report_is_frozen_and_required(tmp_path) -> None:
+    selection_path = tmp_path / "capacity_smoke_selection.json"
+    batch_plan_path = tmp_path / "verifier_batch_plan.json"
+    descriptions_path = tmp_path / "feature_descriptions.jsonl"
+    shuffle_path = tmp_path / "feature_description_shuffle_map.json"
+    for path, content in (
+        (selection_path, '{"query_ids":["q1"]}\n'),
+        (batch_plan_path, '{"queries":[]}\n'),
+        (descriptions_path, '{"feature_key":"f1"}\n'),
+        (shuffle_path, '{"mappings":[]}\n'),
+    ):
+        path.write_text(content, encoding="utf-8")
+    summary = capacity_smoke_report(
+        {
+            "required_predictions": 340,
+            "completed_predictions": 340,
+            "maximum_batch_size_exercised": 64,
+            "backend": MODEL,
+            "prompt_version": PROMPT_VERSION,
+            "generation_git_commit": "frozen-commit",
+            "generation_git_worktree_dirty": False,
+        },
+        selection_path=selection_path,
+        batch_plan_path=batch_plan_path,
+        feature_descriptions_path=descriptions_path,
+        feature_shuffle_path=shuffle_path,
+    )
+    assert summary["status"] == "passed"
+    report_path = tmp_path / "capacity_smoke_report.json"
+    report_path.write_text(json.dumps(summary), encoding="utf-8")
+    validate_capacity_smoke_report(
+        report_path,
+        capacity_selection_path=selection_path,
+        batch_plan_path=batch_plan_path,
+        feature_descriptions_path=descriptions_path,
+        feature_shuffle_path=shuffle_path,
+        current_git_commit="frozen-commit",
+    )
+    shuffle_path.write_text('{"mappings":["changed"]}\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="stale.*shuffle"):
+        validate_capacity_smoke_report(
+            report_path,
+            capacity_selection_path=selection_path,
+            batch_plan_path=batch_plan_path,
+            feature_descriptions_path=descriptions_path,
+            feature_shuffle_path=shuffle_path,
+            current_git_commit="frozen-commit",
+        )
+
+
+def test_real_partial_evaluation_is_rejected_before_qrels_are_needed(tmp_path) -> None:
+    predictions_path = tmp_path / "predictions.jsonl"
+    predictions_path.write_text(
+        json.dumps({"query_id": "q1", "model": MODEL}) + "\n",
+        encoding="utf-8",
+    )
+    selection_path = tmp_path / "screen_selection.json"
+    selection_path.write_text(
+        json.dumps({"query_ids": ["q1", "q2"]}),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="Refusing to open qrels"):
+        evaluate_command(
+            candidate_path=tmp_path / "missing-candidates.jsonl",
+            qrels_path=tmp_path / "missing-qrels.jsonl",
+            selection_path=selection_path,
+            predictions_path=predictions_path,
+            output_dir=tmp_path,
+            overwrite=False,
         )
 
 

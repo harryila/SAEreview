@@ -13,10 +13,16 @@ from .core import canonical_json_sha256, write_json
 
 
 MODEL = "gpt-5.4-mini-2026-03-17"
-PROMPT_VERSION = "structural-rescue-v2"
+PROMPT_VERSION = "structural-rescue-v3"
 REASONING_EFFORT = "none"
 TEMPERATURE = 0.0
 MAX_ATTEMPTS = 3
+VERIFIER_EVIDENCE_MODES = (
+    "structure",
+    "activation_only",
+    "aligned_description",
+    "shuffled_description",
+)
 
 MECHANISM_INSTRUCTIONS = """You extract a compact causal mechanism graph for each
 system independently. Use only the supplied name and background. Do not infer a
@@ -187,6 +193,29 @@ def structured_request_hash(
     )
 
 
+def response_usage_payload(response: Any) -> dict[str, Any] | None:
+    """Return JSON-safe token accounting when the SDK supplies it."""
+
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return None
+    if isinstance(usage, Mapping):
+        value = dict(usage)
+    else:
+        model_dump = getattr(usage, "model_dump", None)
+        if not callable(model_dump):
+            return None
+        value = model_dump(mode="json")
+    if not isinstance(value, dict):
+        return None
+    # Usage accounting must never turn a valid paid response into a failed run.
+    try:
+        json.dumps(value, ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError):
+        return None
+    return value
+
+
 def opaque_feature_alias(feature_key: str) -> str:
     try:
         namespace, raw_id = feature_key.split(":", 1)
@@ -275,6 +304,7 @@ def verifier_payload(
     query_graph: Mapping[str, Any],
     candidates: Sequence[tuple[str, Mapping[str, Any]]],
     *,
+    evidence_mode: str = "structure",
     feature_evidence: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
     feature_descriptions: Mapping[str, str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, str]]:
@@ -284,39 +314,56 @@ def verifier_payload(
     and rescue status are deliberately not accepted by this API.
     """
 
+    if evidence_mode not in VERIFIER_EVIDENCE_MODES:
+        raise ValueError(f"Unknown verifier evidence mode: {evidence_mode}")
+    if evidence_mode == "structure":
+        if feature_evidence is not None or feature_descriptions is not None:
+            raise ValueError("Structure mode cannot receive feature evidence")
+    elif feature_evidence is None:
+        raise ValueError(f"{evidence_mode} mode requires feature evidence")
+    if evidence_mode == "activation_only" and feature_descriptions is not None:
+        raise ValueError("Activation-only mode must omit feature descriptions")
+    if evidence_mode in {"aligned_description", "shuffled_description"} and (
+        feature_descriptions is None
+    ):
+        raise ValueError(f"{evidence_mode} mode requires feature descriptions")
+
     payload_rows: list[dict[str, Any]] = []
     alias_to_candidate: dict[str, str] = {}
     for index, (candidate_id, candidate_graph) in enumerate(candidates, start=1):
         alias = f"C{index:03d}"
         alias_to_candidate[alias] = candidate_id
         evidence_rows: list[dict[str, Any]] = []
-        if feature_evidence is not None:
+        if evidence_mode != "structure":
+            assert feature_evidence is not None
             for evidence in feature_evidence.get(candidate_id, []):
                 internal_feature_key = str(evidence["feature_key"])
                 feature_key = opaque_feature_alias(internal_feature_key)
-                if feature_descriptions is None:
-                    raise ValueError("Feature descriptions are required with feature evidence")
-                if internal_feature_key not in feature_descriptions:
-                    raise ValueError(
-                        f"Missing feature description for {internal_feature_key}"
-                    )
-                description = feature_descriptions[internal_feature_key]
-                if not str(description).strip():
-                    raise ValueError(
-                        f"Empty feature description for {internal_feature_key}"
-                    )
-                evidence_rows.append(
-                    {
-                        "feature_key": feature_key,
-                        "query_activation_percentile": float(
-                            evidence["query_activation_percentile"]
-                        ),
-                        "candidate_activation_percentile": float(
-                            evidence["candidate_activation_percentile"]
-                        ),
-                        "description": description,
-                    }
-                )
+                evidence_row = {
+                    "feature_key": feature_key,
+                    "query_activation_percentile": float(
+                        evidence["query_activation_percentile"]
+                    ),
+                    "candidate_activation_percentile": float(
+                        evidence["candidate_activation_percentile"]
+                    ),
+                }
+                if evidence_mode in {
+                    "aligned_description",
+                    "shuffled_description",
+                }:
+                    assert feature_descriptions is not None
+                    if internal_feature_key not in feature_descriptions:
+                        raise ValueError(
+                            f"Missing feature description for {internal_feature_key}"
+                        )
+                    description = str(feature_descriptions[internal_feature_key])
+                    if not description.strip():
+                        raise ValueError(
+                            f"Empty feature description for {internal_feature_key}"
+                        )
+                    evidence_row["description"] = description
+                evidence_rows.append(evidence_row)
         payload_rows.append(
             {
                 "candidate_alias": alias,
@@ -326,6 +373,51 @@ def verifier_payload(
             }
         )
     return {"pairs": payload_rows}, alias_to_candidate
+
+
+def strip_verifier_feature_evidence(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a copy with every evidence list emptied for paired-mode assertions."""
+
+    pairs = payload.get("pairs")
+    if not isinstance(pairs, list):
+        raise ValueError("Verifier payload is missing pairs")
+    stripped: list[dict[str, Any]] = []
+    for row in pairs:
+        if not isinstance(row, Mapping) or "shared_feature_evidence" not in row:
+            raise ValueError("Verifier payload pair is missing feature evidence")
+        stripped.append({**dict(row), "shared_feature_evidence": []})
+    return {"pairs": stripped}
+
+
+def strip_verifier_feature_descriptions(
+    payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return a copy with only description text removed from feature evidence."""
+
+    pairs = payload.get("pairs")
+    if not isinstance(pairs, list):
+        raise ValueError("Verifier payload is missing pairs")
+    stripped: list[dict[str, Any]] = []
+    for row in pairs:
+        if not isinstance(row, Mapping):
+            raise ValueError("Verifier payload pairs must be objects")
+        evidence = row.get("shared_feature_evidence")
+        if not isinstance(evidence, list):
+            raise ValueError("Verifier payload pair is missing feature evidence")
+        stripped.append(
+            {
+                **dict(row),
+                "shared_feature_evidence": [
+                    {
+                        key: value
+                        for key, value in dict(item).items()
+                        if key != "description"
+                    }
+                    for item in evidence
+                ],
+            }
+        )
+    return {"pairs": stripped}
 
 
 def verdict_score(row: Mapping[str, Any]) -> int:
@@ -447,6 +539,9 @@ class OpenAIStructuredBackend:
                     "instructions_sha256": prompt_hash(instructions),
                     "output": output,
                 }
+                usage = response_usage_payload(response)
+                if usage is not None:
+                    receipt["usage"] = usage
                 write_json(cache_path, receipt)
                 return output
             except Exception as exc:  # API errors differ by SDK/version.
