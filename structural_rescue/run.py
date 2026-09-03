@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 import json
 from pathlib import Path
 import subprocess
@@ -71,6 +72,17 @@ def batched(values: Sequence[Any], size: int) -> Iterable[Sequence[Any]]:
         raise ValueError("batch size must be positive")
     for start in range(0, len(values), size):
         yield values[start : start + size]
+
+
+def unique_request_representatives(
+    request_hashes: Mapping[str, str],
+) -> dict[str, str]:
+    """Choose the first frozen mode for each identical request hash."""
+
+    representatives: dict[str, str] = {}
+    for mode, request_sha256 in request_hashes.items():
+        representatives.setdefault(request_sha256, mode)
+    return representatives
 
 
 def load_rows_by_id(data_path: Path) -> dict[int, dict[str, Any]]:
@@ -1279,7 +1291,6 @@ def verify_pairs(
         "donor_direct_example": 0,
         "usable": 0,
     }
-    empty_evidence_normalizations = 0
     for query in candidates:
         query_id = str(query["query_id"])
         query_system_id = str(query["query_system_id"])
@@ -1446,28 +1457,43 @@ def verify_pairs(
                 return mode, result
 
             completed_modes: dict[str, dict[str, Any]] = {}
+            representatives = unique_request_representatives(
+                {
+                    mode: request_sha256
+                    for mode, (_, _, request_sha256) in pending.items()
+                }
+            )
+            results_by_request: dict[str, dict[str, Any]] = {}
             if pending and backend.model == MODEL:
                 with ThreadPoolExecutor(
-                    max_workers=min(VERIFIER_MODE_WORKERS, len(pending))
+                    max_workers=min(
+                        VERIFIER_MODE_WORKERS, len(representatives)
+                    )
                 ) as executor:
                     futures = {
-                        mode: executor.submit(complete_mode, mode)
-                        for mode in pending
+                        request_sha256: executor.submit(
+                            complete_mode, representative_mode
+                        )
+                        for request_sha256, representative_mode in representatives.items()
                     }
-                    for mode in pending:
-                        completed_mode, result = futures[mode].result()
-                        completed_modes[completed_mode] = result
+                    for request_sha256 in representatives:
+                        _, result = futures[request_sha256].result()
+                        results_by_request[request_sha256] = result
             else:
-                for mode in pending:
-                    completed_mode, result = complete_mode(mode)
-                    completed_modes[completed_mode] = result
+                for request_sha256, representative_mode in representatives.items():
+                    _, result = complete_mode(representative_mode)
+                    results_by_request[request_sha256] = result
+            for mode, (_, _, request_sha256) in pending.items():
+                completed_modes[mode] = deepcopy(
+                    results_by_request[request_sha256]
+                )
 
             for mode in payloads:
                 if mode not in completed_modes:
                     continue
                 payload, empty_aliases, request_sha256 = pending[mode]
                 result = completed_modes[mode]
-                empty_evidence_normalizations += normalize_empty_evidence_verdicts(
+                normalize_empty_evidence_verdicts(
                     result, empty_evidence_aliases=empty_aliases
                 )
                 graph_by_candidate = dict(candidate_graphs)
@@ -1517,6 +1543,11 @@ def verify_pairs(
     completed = sum(key[0] in selected_ids for key in existing)
     if completed != required:
         raise ValueError(f"Expected {required} selected predictions, found {completed}")
+    empty_evidence_normalizations = sum(
+        int(bool(row.get("empty_evidence_normalized")))
+        for key, row in existing.items()
+        if key[0] in selected_ids
+    )
     return {
         "queries": len(candidates),
         "required_predictions": required,

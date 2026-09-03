@@ -55,6 +55,16 @@ hashes, prompts, schemas, retries, scoring, endpoints, and thresholds are
 unchanged. No rubric values, rankings, qrels, or evaluation outcome were
 inspected before this throughput-only amendment.
 
+Revision 8 fixes a concurrency edge case found before the parallel scheduler
+was used on the real screen. Four zero-evidence batches have identical request
+hashes across all evidence modes; those requests are now coalesced by exact hash
+and their validated response is copied to the matching modes before the usual
+deterministic write. This avoids duplicate charges and cache-file races without
+changing any request or scientific choice. The normalization diagnostic is also
+computed from the final rows, making resumed and fresh reports identical. No
+additional verifier values, rankings, qrels, or evaluation outcome were
+inspected before the repair.
+
 ## Fixed comparisons
 
 The implementation fixes candidate budget at 30 and separates candidate-source

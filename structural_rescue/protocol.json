@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "protocol_revision": 7,
+  "protocol_revision": 8,
   "study_id": "feature-grounded-structural-rescue-development-v2",
   "status": "exploratory_development_only",
   "created_at": "2026-09-02",
@@ -101,6 +101,14 @@
     "change": "schedule the four already-frozen evidence-mode requests for each immutable candidate batch concurrently with four workers, then validate and persist results in the original deterministic mode order",
     "invariants": "model, prompts, schemas, payload bytes, request hashes, cache keys, candidate batches, mode order, retries, scoring, artifacts, endpoints, and decision thresholds are unchanged",
     "classification": "transparent pre-evaluation operational amendment"
+  },
+  "pre_evaluation_request_deduplication_amendment": {
+    "date": "2026-09-02",
+    "known_before_change": "A qrels-free audit of the immutable batch plan found four zero-evidence batches whose four evidence modes have identical request hashes. The concurrent scheduler had not been used on the real screen; no additional verifier values, rankings, qrels, or evaluation outcome had been inspected.",
+    "change": "coalesce pending evidence-mode work by exact request SHA-256, issue one API call for each unique request, deep-copy the validated response to every matching mode, retain the original deterministic persistence order, and derive the normalization diagnostic from final rows so it is resume-invariant",
+    "rationale": "issuing identical requests concurrently would duplicate paid work and allow concurrent writes to the same content-addressed cache file; counting only newly normalized rows would make a diagnostic depend on the resume point",
+    "invariants": "model, prompts, schemas, payload bytes, request hashes, cache keys, candidate batches, retries, scoring, artifacts, endpoints, and decision thresholds are unchanged",
+    "classification": "transparent pre-evaluation concurrency-correctness amendment"
   },
   "mechanism_extraction": {
     "inputs": ["one system name", "that system's own background text"],

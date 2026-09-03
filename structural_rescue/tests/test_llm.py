@@ -30,6 +30,7 @@ from structural_rescue.run import (
     extract_mechanisms,
     matched_feature_contexts,
     normalize_empty_evidence_verdicts,
+    unique_request_representatives,
     validate_capacity_smoke_report,
     validate_coverage_report,
     validate_feature_description_batch,
@@ -50,6 +51,20 @@ GRAPH = {
     "boundary_conditions": ["closed system"],
     "model": "ignored provenance",
 }
+
+
+def test_unique_request_representatives_coalesces_duplicate_mode_requests() -> None:
+    assert unique_request_representatives(
+        {
+            "structure": "same",
+            "activation_only": "same",
+            "aligned_description": "described",
+            "shuffled_description": "described",
+        }
+    ) == {
+        "same": "structure",
+        "described": "aligned_description",
+    }
 
 
 def test_mechanism_payload_rejects_gold_or_pair_fields() -> None:
