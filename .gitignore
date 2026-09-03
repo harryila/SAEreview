@@ -15,7 +15,10 @@ latent_escape/models/
 latent_escape/test_frozen.json
 latent_choice/outputs/
 latent_choice/test_frozen.json
-structural_rescue/outputs/
+structural_rescue/outputs/*
+!structural_rescue/outputs/development/
+structural_rescue/outputs/development/*
+!structural_rescue/outputs/development/evaluation_report.json
 structural_rescue/test_frozen.json
 
 # Public checkpoints are downloaded assets, not project source.

@@ -16,11 +16,10 @@ autoencoders (SAEs) and cross-domain analogy:
    endpoints met the pre-run mapping-invariance rubric. It therefore remains
    stopped before feature discovery or intervention; see
    [`latent_choice/`](latent_choice/README.md).
-4. **Feature-Grounded Structural Rescue — development screen.** This separate
-   study tests a blinded relational verifier on exact-30 candidate pools and
-   isolates aligned SAE descriptions from activation-only and shuffled-description
-   controls. Candidate preparation is complete; no 108-query verifier result
-   exists yet. See
+4. **Feature-Grounded Structural Rescue — stopped at its frozen development
+   gate.** The complete 108-query screen found adequate feature-evidence
+   coverage, but neither candidate-source specificity nor aligned-description
+   utility passed. See
    [`structural_rescue/`](structural_rescue/README.md).
 
 The retrieval result motivates the pivot but is **not** evidence for the new
@@ -124,17 +123,21 @@ The expanded cheap control is already informative: across 64 prespecified
 two-projection random-sparse unions, oracle scores range from **179 to 216/566**
 with median **195**; **18/64** match or exceed the SAE score. The higher 95th
 percentile is 204 and the plus-one tail probability is **19/65 = 0.292**.
-Consequently, the frozen SAE-specific candidate-source gate has failed and will
-not be retuned. The still-open development question is narrower: whether
-correctly aligned feature descriptions beat structure-only, activation-only, and
-frequency-matched shuffled-description controls on the identical SAE pool.
+Consequently, the frozen SAE-specific candidate-source gate failed and was not
+retuned. The one-time outcome-stratified 108-query screen then completed all
+24,708 verifier judgments. The SAE-padded structure arm recovered **16/54**
+known rescues while losing **11/54** dense hits (net utility **5**), far below
+the frozen requirements of 33 rescues, at most four losses, and net utility 29.
+Aligned feature descriptions recovered **15/54** and lost **13/54** (net
+utility **2**), underperforming both structure-only and the shuffled-description
+control (24 rescues, 18 losses, net utility 6).
 
-This remains pre-verifier-result. The structured extractor and blinded verifier
-are implemented, and a historical real two-query API smoke passes all stages and
-guardrails. Its readout is explicitly non-evidentiary; no 108-query development
-result has been produced. All SCAR work is exploratory development, and an
-external untouched benchmark is required before any confirmatory claim. The 120
-untouched Latent Choice prompts remain preserved and excluded.
+Usable feature evidence covered **2,819/3,240 pairs (87.0%)** and all 108
+queries, so this was a performance-based no-go rather than a coverage failure.
+Structural Rescue is stopped on SCAR under the frozen protocol; no external
+benchmark will be opened for this method. This does not test an SAE causal
+intervention or disprove the broader SAE hypothesis. See the
+[source-free aggregate report](structural_rescue/outputs/development/evaluation_report.json).
 
 ## License and attribution
 

@@ -5,9 +5,13 @@ the frozen retrieval, Latent Escape, or Latent Choice protocols.
 
 ## Status
 
-Revision 5 candidate preparation is complete and reproducible. The preflight
-reconstructs all 566 SCAR query-directions from the pinned embedding cache and
-checkpoints:
+The frozen 108-query development screen is complete and returned
+`no_go_stop_structural_rescue_on_scar`. Evidence coverage was adequate, but
+neither candidate-source specificity nor aligned-description utility passed.
+Structural Rescue is therefore stopped on SCAR without retuning.
+
+The preflight reconstructs all 566 SCAR query-directions from the pinned
+embedding cache and checkpoints:
 
 | Candidate pool | Gold present |
 | --- | ---: |
@@ -20,18 +24,40 @@ The SAE union contains the 54 previously identified dense misses, including 19
 whose gold candidate is below dense rank 30. Across 64 prespecified random seed
 pairs, 18 random source unions matched or exceeded the SAE oracle; the higher
 95th percentile was 204 and the plus-one tail probability was 19/65 = 0.292.
-The frozen SAE-specific candidate-source gate has therefore already failed.
+The frozen SAE-specific candidate-source gate therefore failed.
 This is a development finding, not a population or confirmatory claim, and the
 seeds and gate will not be retuned. Random source unions are also larger on
 average (22.20 candidates versus 19.11 for SAE), so this rejects the frozen
 total-hit gate—not a size-matched efficiency claim or the broader SAE hypothesis.
 
-Every verifier pool is now padded to exactly 30 candidates with the next unused
+Every verifier pool was padded to exactly 30 candidates with the next unused
 dense results. Unpadded unions are retained only for source-oracle reporting and
-SAE feature selection. The still-open development question is narrower: whether
-correctly aligned feature descriptions improve a fixed verifier over the same
-SAE-padded pool with structure alone, activation percentiles alone, or
-frequency-matched shuffled descriptions.
+SAE feature selection.
+
+The one-time screen completed 24,708 judgments across 108 outcome-stratified
+queries. These are development-screen diagnostics, not population Recall
+estimates:
+
+| Arm | Rescues / 54 | Dense losses / 54 | Net utility |
+| --- | ---: | ---: | ---: |
+| Dense-30 + structure | 13 | 11 | 2 |
+| SAE-padded + structure | 16 | 11 | 5 |
+| Random-padded + structure 1 | 11 | 9 | 2 |
+| Random-padded + structure 2 | 11 | 11 | 0 |
+| Random-padded + structure 3 | 12 | 10 | 2 |
+| SAE-padded + activations only | 19 | 21 | -2 |
+| SAE-padded + aligned descriptions | 15 | 13 | 2 |
+| SAE-padded + shuffled descriptions | 24 | 18 | 6 |
+
+The frozen absolute gate required at least 33 rescues, at most four dense
+losses, and net utility of at least 29. SAE-padded structure cleared none of
+those thresholds. Aligned descriptions also trailed structure-only by three net
+successes and shuffled descriptions by four; they cleared none of the frozen
+feature-grounding comparisons. Usable evidence covered 2,819/3,240 SAE-pool
+pairs (87.0%), all 108 queries, and all 54 queries in each stratum. The no-go is
+therefore performance-based, not an operational or coverage failure. The exact
+aggregate output is in
+[`evaluation_report.json`](outputs/development/evaluation_report.json).
 
 The revision-4 fixture and real two-query external-API smoke passed end to end
 (73 mechanisms, 256 descriptions, and 166 judgments). That historical smoke
@@ -148,8 +174,9 @@ uv run python -m structural_rescue.run verify
 uv run python -m structural_rescue.run evaluate
 ```
 
-All generated SCAR-derived text, qrels, feature evidence, and API responses stay
-under ignored `structural_rescue/outputs/`.
+All SCAR-derived text, qrels, feature evidence, per-query rows, predictions, and
+API responses stay ignored under `structural_rescue/outputs/`. Only the
+source-text-free aggregate evaluation report is tracked.
 
 The frozen development gate requires at least 33/54 known rescues, at most four
 losses among the 54 dense-retention controls, and net utility of at least 29.
@@ -161,18 +188,17 @@ are in [`protocol.json`](protocol.json).
 
 ## Claim boundary
 
-SCAR is fully inspected development data, and the 108 rows are selected using
-known outcomes. The random-oracle result already rejects SAE candidate-source
-specificity under the frozen gate. A positive aligned-description screen could
-only support the narrower decision to freeze that verifier method for an
-outcome-independent external benchmark. It would not test an SAE intervention,
-establish serendipity, or demonstrate scientific discovery. Confirmation
-requires freezing the complete method and evaluating a genuinely untouched
-external analogy benchmark. The unused 120 Latent Choice prompts remain
-excluded. Twenty-four screen queries span two request batches, whose fixed
-integer rubric scores are assumed comparable across fixed batches; any apparent
-description benefit is therefore a batch-level verifier-method effect, not proof
-that an individual feature description locally explains a candidate.
+SCAR is fully inspected development data, and the 108 rows were selected using
+known outcomes. The frozen result closes Structural Rescue on SCAR: neither the
+candidate-source gate nor the feature-grounding gate passed, so the method will
+not advance to an external benchmark or be retuned on this screen. This does not
+test an SAE intervention, disprove the broader SAE hypothesis, establish
+serendipity, or demonstrate scientific discovery. The unused 120 Latent Choice
+prompts remain excluded. Twenty-four screen queries span two request batches,
+whose fixed integer rubric scores are assumed comparable across fixed batches;
+the description comparison is a batch-level verifier-method diagnostic, not a
+test of local feature faithfulness.
 
-See [`protocol.json`](protocol.json) and the source-text-free
-[`prepare_report.json`](prepare_report.json).
+See [`protocol.json`](protocol.json), the source-text-free
+[`prepare_report.json`](prepare_report.json), and the source-text-free
+[`evaluation_report.json`](outputs/development/evaluation_report.json).

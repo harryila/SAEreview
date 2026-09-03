@@ -1,12 +1,12 @@
 cff-version: 1.2.0
 message: "If you use this repository, please cite the software and the upstream works listed in CITATIONS.md."
-title: "SAEreview: SAE Analogy Retrieval and Causal-Measurement Studies"
+title: "SAEreview: SAE Analogy Retrieval, Causal Measurement, and Structural Rescue Studies"
 type: software
 authors:
   - family-names: Ilanyan
     given-names: Harry
-version: 0.4.0
-date-released: 2026-09-02
+version: 0.5.3
+date-released: 2026-09-03
 repository-code: "https://github.com/harryila/SAEreview"
 url: "https://github.com/harryila/SAEreview"
 license: MIT
