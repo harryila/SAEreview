@@ -14,6 +14,7 @@ from .core import (
     DEFAULT_DATA,
     DEFAULT_OUTPUT_DIR,
     DEFAULT_PROTOCOL,
+    FEATURE_DESCRIPTION_BATCH_SIZE,
     ROOT,
     VERIFIER_BATCH_SIZE,
     canonical_json_sha256,
@@ -48,7 +49,6 @@ from .llm import (
 
 
 MECHANISM_BATCH_SIZE = 8
-FEATURE_BATCH_SIZE = 8
 PREPARED_FILENAMES = {
     "candidate_manifest": "candidate_manifest.jsonl",
     "qrels_sidecar": "qrels_sidecar.jsonl",
@@ -489,7 +489,7 @@ def describe_features(
             identifier = str(example["system_id"])
             examples_by_id[identifier] = system_payload(identifier, rows_by_id)
     existing = _read_existing(output_path, "feature_key", overwrite=overwrite)
-    for batch in batched(features, FEATURE_BATCH_SIZE):
+    for batch in batched(features, FEATURE_DESCRIPTION_BATCH_SIZE):
         payload = feature_description_payload(batch, examples_by_id)
         internal_keys = [str(row["feature_key"]) for row in batch]
         alias_to_internal = {

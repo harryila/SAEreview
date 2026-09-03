@@ -21,7 +21,11 @@ candidates (mean 19.11). The two-projection random control has 13–30 (mean
 22.10). These are candidate-oracle facts, not verifier results.
 
 The offline two-query fixture run passes end to end. A real external-API smoke
-test has not yet been run, so no structural-verifier result exists.
+test passed mechanism extraction (73/73) but exposed a deterministic missing-ID
+failure in one eight-feature description batch after 208/256 descriptions. Before
+any verifier scores existed, protocol revision 3 froze uniform four-feature
+description batches; that compatibility rerun is in progress. No structural-
+verifier result exists yet.
 
 ## Fixed comparisons
 

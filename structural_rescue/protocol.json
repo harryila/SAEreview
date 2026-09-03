@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "protocol_revision": 2,
+  "protocol_revision": 3,
   "study_id": "feature-grounded-structural-rescue-development-v1",
   "status": "exploratory_development_only",
   "created_at": "2026-09-02",
@@ -47,12 +47,19 @@
     "described_features_per_representation": 128,
     "selection": "highest aggregate IDF-weighted shared activation across every SAE-union query-candidate pair, without qrels",
     "description_examples_per_feature": 6,
+    "description_batch_size": 4,
     "descriptions_frozen_before_verifier_scoring": true,
     "model_visible_feature_ids": "opaque representation-local aliases",
     "coherence_rule": "only descriptions returned coherent=true may be supplied",
     "direct_example_rule": "omit the entire feature for a pair if either system's normalized name-plus-background content hash occurs anywhere in that feature's exact batched description-request context",
     "usable_features_per_pair": "0 to 3 after frozen coherence and direct-example filtering",
     "interpretation": "the grounded comparison adds the full feature-evidence bundle (opaque aliases, activation percentiles, and descriptions), not descriptions alone"
+  },
+  "pre_verifier_smoke_amendment": {
+    "date": "2026-09-02",
+    "known_before_change": "73/73 mechanism graphs and 208/256 descriptions had completed; one eight-feature description response repeatedly omitted R2:F0509; no verifier scores or qrels-based evaluation had been produced",
+    "diagnostic": "R2:F0509 succeeded alone and in its deterministic four-feature half-batch",
+    "change": "freeze description batches at four features and regenerate all descriptions under that uniform context size"
   },
   "mechanism_extraction": {
     "inputs": ["one system name", "that system's own background text"],

@@ -6,13 +6,19 @@ import argparse
 import json
 from pathlib import Path
 
-from .core import ARM_NAMES, DEFAULT_PROTOCOL, RANDOM_SEEDS, VERIFIER_BATCH_SIZE
+from .core import (
+    ARM_NAMES,
+    DEFAULT_PROTOCOL,
+    FEATURE_DESCRIPTION_BATCH_SIZE,
+    RANDOM_SEEDS,
+    VERIFIER_BATCH_SIZE,
+)
 from .llm import MAX_ATTEMPTS, MODEL, PROMPT_VERSION, REASONING_EFFORT, TEMPERATURE
 
 
 def validate(path: Path = DEFAULT_PROTOCOL) -> dict:
     protocol = json.loads(path.read_text(encoding="utf-8"))
-    if protocol.get("schema_version") != 1 or protocol.get("protocol_revision") != 2:
+    if protocol.get("schema_version") != 1 or protocol.get("protocol_revision") != 3:
         raise ValueError("Unexpected Structural Rescue protocol revision")
     if protocol["status"] != "exploratory_development_only":
         raise ValueError("Protocol must remain exploratory development-only")
@@ -37,6 +43,11 @@ def validate(path: Path = DEFAULT_PROTOCOL) -> dict:
         raise ValueError("Verifier retry policy differs from implementation")
     if int(verifier["batch_size"]) != VERIFIER_BATCH_SIZE:
         raise ValueError("Verifier batch size differs from implementation")
+    if (
+        int(protocol["feature_evidence"]["description_batch_size"])
+        != FEATURE_DESCRIPTION_BATCH_SIZE
+    ):
+        raise ValueError("Feature-description batch size differs from implementation")
     serialized = json.dumps(protocol, sort_keys=True).lower()
     if "improved serendipity" in serialized or "causal intervention result" in serialized:
         raise ValueError("Protocol overstates the possible claim")
