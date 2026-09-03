@@ -17,6 +17,7 @@ from structural_rescue.run import (
     _pair_feature_context,
     _validate_fixed_batch,
     PREPARED_FILENAMES,
+    normalize_empty_evidence_verdicts,
     validate_verdict_batch,
     validate_prepared_bundle,
 )
@@ -130,7 +131,7 @@ def test_pair_feature_context_excludes_duplicate_content_and_incoherent() -> Non
     assert counts == {"raw": 2, "incoherent": 1, "direct_example": 1, "usable": 0}
 
 
-def test_empty_evidence_verdict_fields_are_enforced() -> None:
+def test_empty_evidence_verdict_fields_are_normalized_and_preserved() -> None:
     output = {
         "candidates": [
             {
@@ -140,12 +141,18 @@ def test_empty_evidence_verdict_fields_are_enforced() -> None:
             }
         ]
     }
-    with pytest.raises(ValueError, match="without evidence"):
-        validate_verdict_batch(
-            output,
-            aliases={"C001": "b:2"},
-            empty_evidence_aliases={"C001"},
-        )
+    validate_verdict_batch(
+        output,
+        aliases={"C001": "b:2"},
+        empty_evidence_aliases={"C001"},
+    )
+    assert normalize_empty_evidence_verdicts(
+        output, empty_evidence_aliases={"C001"}
+    ) == 1
+    verdict = output["candidates"][0]
+    assert verdict["raw_feature_support"] == 1
+    assert verdict["feature_support"] == 0
+    assert verdict["empty_evidence_normalized"] is True
 
 
 def test_resume_rejects_partial_or_stale_fixed_batches() -> None:

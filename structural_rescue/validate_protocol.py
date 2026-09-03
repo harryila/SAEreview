@@ -18,7 +18,7 @@ from .llm import MAX_ATTEMPTS, MODEL, PROMPT_VERSION, REASONING_EFFORT, TEMPERAT
 
 def validate(path: Path = DEFAULT_PROTOCOL) -> dict:
     protocol = json.loads(path.read_text(encoding="utf-8"))
-    if protocol.get("schema_version") != 1 or protocol.get("protocol_revision") != 3:
+    if protocol.get("schema_version") != 1 or protocol.get("protocol_revision") != 4:
         raise ValueError("Unexpected Structural Rescue protocol revision")
     if protocol["status"] != "exploratory_development_only":
         raise ValueError("Protocol must remain exploratory development-only")

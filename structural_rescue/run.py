@@ -169,14 +169,28 @@ def validate_verdict_batch(
         id_key="candidate_alias",
         expected=aliases,
     )
+
+
+def normalize_empty_evidence_verdicts(
+    output: Mapping[str, Any], *, empty_evidence_aliases: set[str]
+) -> int:
+    """Apply the frozen evidence-only invariant while preserving raw model fields."""
+
+    overrides = 0
     for verdict in output["candidates"]:
-        if str(verdict["candidate_alias"]) in empty_evidence_aliases:
-            if int(verdict["feature_support"]) != 0:
-                raise ValueError("Verdict has nonzero feature_support without evidence")
-            if bool(verdict["accidental_feature_overlap"]):
-                raise ValueError(
-                    "Verdict flags feature overlap without feature evidence"
-                )
+        raw_support = int(verdict["feature_support"])
+        raw_overlap = bool(verdict["accidental_feature_overlap"])
+        is_empty = str(verdict["candidate_alias"]) in empty_evidence_aliases
+        verdict["raw_feature_support"] = raw_support
+        verdict["raw_accidental_feature_overlap"] = raw_overlap
+        verdict["empty_evidence_normalized"] = is_empty and (
+            raw_support != 0 or raw_overlap
+        )
+        if is_empty:
+            verdict["feature_support"] = 0
+            verdict["accidental_feature_overlap"] = False
+            overrides += int(bool(verdict["empty_evidence_normalized"]))
+    return overrides
 
 
 def validate_feature_description_batch(
@@ -685,6 +699,7 @@ def verify_pairs(
         "direct_example": 0,
         "usable": 0,
     }
+    empty_evidence_normalizations = 0
     for query in candidates:
         query_id = str(query["query_id"])
         query_system_id = str(query["query_system_id"])
@@ -805,6 +820,9 @@ def verify_pairs(
                         empty_evidence_aliases=empty_aliases,
                     ),
                 )
+                empty_evidence_normalizations += normalize_empty_evidence_verdicts(
+                    result, empty_evidence_aliases=empty_aliases
+                )
                 graph_by_candidate = dict(candidate_graphs)
                 payload_by_alias = {
                     str(row["candidate_alias"]): row for row in payload["pairs"]
@@ -855,6 +873,7 @@ def verify_pairs(
         "backend": backend.model,
         "paired_superpool_batches": True,
         "feature_evidence_filter_counts": evidence_counts,
+        "empty_evidence_field_normalizations": empty_evidence_normalizations,
         "output_sha256": sha256_file(output_path),
     }
 

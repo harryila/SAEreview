@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "protocol_revision": 3,
+  "protocol_revision": 4,
   "study_id": "feature-grounded-structural-rescue-development-v1",
   "status": "exploratory_development_only",
   "created_at": "2026-09-02",
@@ -61,6 +61,12 @@
     "diagnostic": "R2:F0509 succeeded alone and in its deterministic four-feature half-batch",
     "change": "freeze description batches at four features and regenerate all descriptions under that uniform context size"
   },
+  "pre_evaluation_smoke_amendment": {
+    "date": "2026-09-02",
+    "known_before_change": "73/73 mechanisms, 256/256 descriptions, and 122/166 verifier predictions had completed; one feature-grounded response repeatedly assigned nonzero feature_support to an empty-evidence pair; no qrels-based evaluation had run",
+    "change": "preserve the raw model fields, but deterministically set feature_support=0 and accidental_feature_overlap=false before scoring whenever shared_feature_evidence is empty",
+    "rationale": "this enforces the existing evidence-only rubric invariant rather than changing an endpoint"
+  },
   "mechanism_extraction": {
     "inputs": ["one system name", "that system's own background text"],
     "forbidden_inputs": ["paired system", "SCAR mappings", "SCAR Explanation", "gold candidate", "retrieval rank", "rescue status"],
@@ -81,6 +87,7 @@
     "candidate_order": "deterministic SHA-256 permutation",
     "batch_size": 64,
     "ranking_score": "fixed deterministic function of integer rubric fields",
+    "empty_evidence_postprocessing": "retain raw evidence-only fields, then force feature_support=0 and accidental_feature_overlap=false before scoring when the pair has no shared feature evidence",
     "batching": "one immutable deterministic ordered/chunked superpool plan per query; identical candidates, aliases, and positions are scored once without and once with SAE evidence",
     "missing_or_stale_result_policy": "abort rather than silently bottom-rank or mix provenance",
     "resume_binding": ["model", "prompt version", "instruction hash", "schema hash", "exact request hash", "batch-plan hash", "alias-map hash", "git commit"],

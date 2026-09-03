@@ -27,6 +27,12 @@ any verifier scores existed, protocol revision 3 froze uniform four-feature
 description batches; that compatibility rerun is in progress. No structural-
 verifier result exists yet.
 
+That rerun completed 256/256 descriptions. Before evaluation, the real verifier
+then exposed a second instruction-compliance edge case: an empty-evidence pair
+received nonzero evidence-only rubric fields. Revision 4 preserves those raw
+fields for audit and deterministically zeros them before scoring, exactly as the
+original invariant required. No qrels-based evaluation preceded this amendment.
+
 ## Fixed comparisons
 
 The implementation avoids two confounds: a verifier over exactly ten dense
